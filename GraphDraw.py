@@ -1,6 +1,6 @@
 import wx
 import Model
-from Competitions import SetDefaultData
+from Competitions import SetDefaultData, DoRandomSimulation
 from Utils import WriteCell
 from Events import FontSize
 import bisect
@@ -234,7 +234,7 @@ class GraphDraw( wx.Panel ):
 		def getIsBlocked( cFrom, rFrom, cTo, rTo ):
 			for c in xrange(cFrom+1, cTo):
 				for r in xrange( min(rFrom, rTo), min(max(rFrom, rTo), len(grid[c])) ):
-					if 'in' in grid[c][r]:
+					if grid[c][r]:
 						return True
 			return False
 			
@@ -345,7 +345,9 @@ class GraphDrawFrame(wx.Frame):
 if __name__ == "__main__":
 	app = wx.App(False)
 	#SetDefaultData()
-	with open(r'Races\TestFinished.smr', 'rb') as fp:
-		Model.model = pickle.load( fp )
+	#with open(r'Races\TestFinished.smr', 'rb') as fp:
+	#	Model.model = pickle.load( fp )
+	SetDefaultData()
+	DoRandomSimulation()
 	frame = GraphDrawFrame()
 	app.MainLoop()

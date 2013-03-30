@@ -1,3 +1,4 @@
+import random
 from Model import Competition, Tournament, System, Event
 import Model
 from TestData import getTestData
@@ -203,8 +204,9 @@ def SetDefaultData():
 	model = Model.Model()
 	for competition in getCompetitions():
 		#if 'Olympic' in competition.name:
+		if 'World Cup' in competition.name:
 		#if '1/2 World Cup' in competition.name:
-		if 'World Championships' in competition.name:
+		#if 'World Championships' in competition.name:
 			model.competition = competition
 			break
 	testData = getTestData()
@@ -215,4 +217,19 @@ def SetDefaultData():
 	model.setQualifyingTimes()
 	Model.model = model
 	return model
-		
+	
+def DoRandomSimulation():
+	competition = Model.model.competition
+	tse = competition.getCanStart()
+	while 1:
+		tse = competition.getCanStart()
+		if not tse:
+			break
+		e = tse[0][2]
+		start = e.getStart()
+		places = [c for c in e.composition if competition.state.inContention(c)]
+		random.shuffle( places )
+		for i, c in enumerate(places):
+			start.places[c] = i + 1
+		e.propagate()
+		competition.propagate()

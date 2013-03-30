@@ -1,5 +1,6 @@
 from Model import *
 import Competitions
+import random
 
 def Simulate( competition ):
 	print competition.name, 'Simulation'
