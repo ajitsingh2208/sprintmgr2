@@ -1,0 +1,1 @@
+AppVerName="SprintMgr 0.1"
