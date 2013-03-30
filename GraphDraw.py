@@ -3,6 +3,7 @@ import Model
 from Competitions import SetDefaultData
 from Utils import WriteCell
 from Events import FontSize
+import bisect
 import cPickle as pickle
 
 class GraphDraw( wx.Panel ):
@@ -20,15 +21,20 @@ class GraphDraw( wx.Panel ):
 		self.colX = []
 
 	def OnMotion( self, evt):
+		if not self.colX:
+			return
+			
 		x, y = evt.GetX(), evt.GetY()
-		for i in xrange(len(self.colX)):
-			if self.colX[i] <= x < self.colX[i+1]:
-				for rect, riders in self.rectRiders[i]:
-					if rect.ContainsXY(x, y):
-						if self.selectedRider != rider:
-							self.selectedRider = rider;
-							wx.CallAfter( self.refresh )
-							break
+		i = max( 0, bisect.bisect_left(self.colX, x, hi=len(self.colX)-1) - 1 )
+		if self.colX[i] <= x < self.colX[i+1]:
+			for rect, rider in self.rectRiders[i]:
+				if rect.ContainsXY(x, y):
+					if self.selectedRider != rider:
+						self.selectedRider = rider;
+						wx.CallAfter( self.refresh )
+					return
+				if rect.GetY() > y:
+					return
 	
 	def OnSize(self, evt):
 		wx.CallAfter( self.Refresh )
@@ -56,7 +62,7 @@ class GraphDraw( wx.Panel ):
 		def riderName( id ):
 			try:
 				return state.labels[id].full_name
-			except:
+			except KeyError:
 				return ''
 	
 		grid = [[{'title':'Qualifiers'}, {}]]
@@ -175,10 +181,8 @@ class GraphDraw( wx.Panel ):
 		whitePen = gc.CreatePen( wx.WHITE_PEN )
 		blackBrush = gc.CreateBrush( wx.BLACK_BRUSH )
 		whiteBrush = gc.CreateBrush( wx.WHITE_BRUSH )
-		gc.SetBrush( blackBrush )
 		
 		gc.SetBrush( whiteBrush )
-		#gc.DrawRectangle( 0, 0, width, height )
 		
 		def addSCurve( path, x1, y1, x2, y2 ):
 			controlRatio = 0.50
@@ -315,17 +319,16 @@ class GraphDraw( wx.Panel ):
 					rider = state.labels.get(v['in'], None)
 					if rider:
 						drawName( rider.full_name, x, y, rider == self.selectedRider )
-						colRectsappend( (wx.Rect(x, y, gc.GetFullTextExtent(rider.full_name)[0], rowHeight), rider) )
+						colRects.append( (wx.Rect(x, y, gc.GetFullTextExtent(rider.full_name)[0], rowHeight), rider) )
 				elif 'out' in v and riderName(v['out']):
 					rider = state.labels.get(v['out'], None)
 					if rider:
 						colRectsappend( (wx.Rect(x, y, gc.GetFullTextExtent(rider.full_name)[0], rowHeight), rider) )
 			self.rectRiders.append( colRects )
-		self.rectRiders.append( (colX[len(grid), []) )
 		self.colX = colX
 					
 		
-########################################################################
+#----------------------------------------------------------------------
 
 class GraphDrawFrame(wx.Frame):
 	""""""
