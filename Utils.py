@@ -1,15 +1,52 @@
-import Model
+#-----------------------------------------------------------------------
+# Set translation locale.
+#
 import wx
-import os
-import sys
-import wx.grid		as gridlib
-import unicodedata
-import string
+locale = wx.Locale()
+
+from Version import AppVerName
+import gettext
+initTranslationCalled = False
+def initTranslation():
+	global initTranslationCalled
+	if not initTranslationCalled:
+		gettext.install(AppVerName.split(None, 1), './locale', unicode=True)
+		initTranslationCalled = True
+		
+initTranslation()
+
+#-----------------------------------------------------------------------
+# Monkey-patch font so we always fetch a default font face.
+#
+FontFace = 'Arial'
+FontFromPixelSize = wx.FontFromPixelSize
+def FontFromPixelSizeFontFace( *args, **kwargs ):
+	if 'face' not in kwargs:
+		kwargs['face'] = FontFace
+	return FontFromPixelSize( *args, **kwargs )
+wx.FontFromPixelSize = FontFromPixelSizeFontFace
+
+Font = wx.Font
+def FontFontFace( *args, **kwargs ):
+	if 'face' not in kwargs:
+		kwargs['face'] = FontFace
+	return Font( *args, **kwargs )
+wx.Font = FontFontFace
 
 try:
 	from win32com.shell import shell, shellcon
 except ImportError:
 	pass
+	
+import os
+import re
+import sys
+import math
+import wx.grid		as gridlib
+import unicodedata
+import platform
+import datetime
+import string
 
 def removeDiacritic(input):
 	'''
@@ -36,6 +73,16 @@ def ordinal( value ):
 	if (value % 100)//10 != 1:
 		return "%d%s" % (value, ['th','st','nd','rd','th','th','th','th','th','th'][value%10])
 	return "%d%s" % (value, "th")
+	
+reSpace = re.compile(r'\s')
+def approximateMatch( s1, s2 ):
+	s1 = reSpace.sub( '', s1 ).lower()
+	s2 = reSpace.sub( '', s2 ).lower()
+	if s1[-1].isdigit():
+		return 1.2 if s1 == s2 else 0.0
+	if s1.startswith(s2) or s2.startswith(s1):
+		return 1.1
+	return len(set(s1) & set(s2)) / float(len(s1) + len(s2))
 
 GoodHighlightColour = wx.Colour( 0, 255, 0 )
 BadHighlightColour = wx.Colour( 255, 255, 0 )
@@ -72,8 +119,10 @@ class WriteCell( object ):
 		self.grid = grid
 		self.row = row
 		self.col = col
-	def __call__( self, value ):
+	def __call__( self, value, horiz=None, vert=None ):
 		self.grid.SetCellValue( self.row, self.col, value )
+		if horiz is not None or vert is not None:
+			self.grid.SetCellAlignment( self.row, self.col, horiz or wx.ALIGN_LEFT, vert or wx.ALIGN_TOP )
 		self.col += 1
 		
 def SetValue( st, value ):
@@ -123,7 +172,24 @@ def AdjustGridSize( grid, rowsRequired = None, colsRequired = None ):
 			grid.DeleteCols( colsRequired, d )
 		elif d < 0:
 			grid.AppendCols( -d )
-
+			
+def ChangeFontInChildren(win, font):
+	'''
+	Set font in given window and all its descendants.
+	@type win: L{wx.Window}
+	@type font: L{wx.Font}
+	'''
+	try:
+		win.SetFont( font )
+	except:
+		pass # don't require all objects to support SetFont
+	
+	try:
+		for child in win.GetChildren():
+			ChangeFontInChildren( child, font )
+	except:
+		pass
+		
 def formatTime( secs ):
 	if secs is None:
 		secs = 0
@@ -140,16 +206,28 @@ def formatDate( date ):
 	y, m, d = date.split('-')
 	d = datetime.date( int(y,10), int(m,10), int(d,10) )
 	return d.strftime( '%B %d, %Y' )
-		
-def StrToSeconds( str = '' ):
-	secs = 0
-	for f in str.split(':'):
-		secs = secs * 60 + int(f, 10)
+
+def StrToSeconds( s = '' ):
+	secs = 0.0
+	for f in s.strip().split(':'):
+		secs = secs * 60.0 + float(f)
 	return secs
 	
-def SecondsToStr( secs = 0 ):
-	secs = int(secs+0.5)
-	return '%02d:%02d:%02d' % (secs / (60*60), (secs / 60)%60, secs % 60)
+def SecondsToStr( secs, full = False ):
+	f, ss = math.modf(secs)
+	secs = int(ss)
+	hours = int(secs // (60*60))
+	if hours > 99:
+		hours = 99
+	minutes = int( (secs // 60) % 60 )
+	secs = secs % 60 + f
+	if full:
+		return "{:02d}:{:02d}:{:06.3f}".format(hours, minutes, secs)
+	if hours != 0:
+		return "{}:{:02d}:{:06.3f}".format(hours, minutes, secs)
+	if minutes != 0:
+		return "{}:{:06.3f}".format(minutes, secs)
+	return "{:.3f}".format(secs)
 
 def SecondsToMMSS( secs = 0 ):
 	secs = int(secs+0.5)
@@ -187,6 +265,45 @@ def AlignHorizontalScroll( gFrom, gTo ):
 
 #------------------------------------------------------------------------
 
+PlatformName = platform.system()
+def writeLog( message ):
+	try:
+		dt = datetime.datetime.now()
+		dt = dt.replace( microsecond = 0 )
+		sys.stdout.write( '{} ({}) {}{}'.format(dt.isoformat(), PlatformName, message, '\n' if not message or message[-1] != '\n' else '' ) )
+		sys.stdout.flush()
+	except IOError:
+		pass
+		
+def disable_stdout_buffering():
+	fileno = sys.stdout.fileno()
+	temp_fd = os.dup(fileno)
+	sys.stdout.close()
+	os.dup2(temp_fd, fileno)
+	os.close(temp_fd)
+	sys.stdout = os.fdopen(fileno, "w", 0)
+		
+def logCall( f ):
+	def _getstr( x ):
+		return u'{}'.format(x) if not isinstance(x, wx.Object) else u'<<{}>>'.format(x.__class__.__name__)
+	
+	def new_f( *args, **kwargs ):
+		parameters = [_getstr(a) for a in args] + [ u'{}={}'.format( key, _getstr(value) ) for key, value in kwargs.iteritems() ]
+		writeLog( 'call: {}({})'.format(f.__name__, removeDiacritic(u', '.join(parameters))) )
+		return f( *args, **kwargs)
+	return new_f
+	
+def logException( e, exc_info ):
+	eType, eValue, eTraceback = exc_info
+	ex = traceback.format_exception( eType, eValue, eTraceback )
+	writeLog( '**** Begin Exception ****' )
+	for d in ex:
+		for line in d.split( '\n' ):
+			writeLog( line )
+	writeLog( '**** End Exception ****' )
+	
+#------------------------------------------------------------------------
+
 mainWin = None
 def setMainWin( mw ):
 	global mainWin
@@ -195,9 +312,9 @@ def setMainWin( mw ):
 def getMainWin():
 	return mainWin
 
-def refresh( pane = None ):
+def refresh():
 	if mainWin is not None:
-		mainWin.refresh( pane )
+		mainWin.refresh()
 
 def writeRace():
 	if mainWin is not None:

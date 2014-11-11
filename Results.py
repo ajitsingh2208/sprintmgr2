@@ -11,9 +11,9 @@ from Competitions import SetDefaultData
 from Utils import WriteCell
 from Events import FontSize
 
+Arrow = u'\u2192'
+
 class Results(wx.Panel):
-	""""""
- 
 	#----------------------------------------------------------------------
 	def __init__(self, parent):
 		"""Constructor"""
@@ -21,21 +21,27 @@ class Results(wx.Panel):
  
 		self.font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
 		
-		self.showResultsLabel = wx.StaticText( self, wx.ID_ANY, 'Show Results:' )
+		self.showResultsLabel = wx.StaticText( self, wx.ID_ANY, u'Show:' )
 		self.showResultsLabel.SetFont( self.font )
-		self.showResults = wx.Choice( self, wx.ID_ANY, choices = ['Time Trial'] )
+		self.showResults = wx.Choice( self, wx.ID_ANY, choices = ['Qualifiers'] )
 		self.showResults.SetFont( self.font )
 		self.showResults.SetSelection( 0 )
 		
+		self.communiqueLabel = wx.StaticText( self, wx.ID_ANY, u'Communiqu\u00E9:' )
+		self.communiqueLabel.SetFont( self.font )
+		self.communiqueNumber = wx.TextCtrl( self, wx.ID_ANY, '', size=(64,-1) )
+		self.communiqueNumber.SetFont( self.font )
+		
+		self.showResults.Bind( wx.EVT_LEFT_DOWN, self.onClickResults )
 		self.showResults.Bind( wx.EVT_CHOICE, self.onShowResults )
-		self.showNames = wx.ToggleButton( self, wx.ID_ANY, 'Show Names' )
+		self.showNames = wx.ToggleButton( self, wx.ID_ANY, u'Show Names' )
 		self.showNames.SetFont( self.font )
 		self.showNames.Bind( wx.EVT_TOGGLEBUTTON, self.onToggleShow )
-		self.showTeams = wx.ToggleButton( self, wx.ID_ANY, 'Show Teams' )
+		self.showTeams = wx.ToggleButton( self, wx.ID_ANY, u'Show Teams' )
 		self.showTeams.SetFont( self.font )
 		self.showTeams.Bind( wx.EVT_TOGGLEBUTTON, self.onToggleShow )
  
-		self.headerNames = ['Pos', 'Bib', 'Rider', 'Team', 'License']
+		self.headerNames = ['uPos', u'Bib', u'Rider', u'Team', u'License']
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.DisableDragRowSize()
@@ -49,7 +55,9 @@ class Results(wx.Panel):
 		
 		hs = wx.BoxSizer(wx.HORIZONTAL)
 		hs.Add( self.showResultsLabel, 0, flag=wx.ALIGN_CENTRE_VERTICAL, border = 4 )
-		hs.Add( self.showResults, 1, flag=wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.ALL, border = 4 )
+		hs.Add( self.showResults, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
+		hs.Add( self.communiqueLabel, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
+		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border = 4 )
 		hs.Add( self.showNames, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
 		hs.Add( self.showTeams, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
 		
@@ -70,30 +78,35 @@ class Results(wx.Panel):
 			
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( self.font )
-			if self.headerNames[col] in ('Bib', 'Event'):
+			if self.headerNames[col] in {u'Bib', u'Event'}:
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP )
-			elif self.headerNames[col] == 'Time':
-				attr.SetRenderer( gridlib.GridCellFloatRenderer(-1, 3) )
-			elif self.headerNames[col] == 'Pos':
+			elif u'Time' in self.headerNames[col]:
 				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_TOP )
-			elif self.headerNames[col].startswith( '==' ):
+			elif self.headerNames[col] == u'Pos':
+				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_TOP )
+			elif Arrow in self.headerNames[col]:
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_VERTICAL_CENTRE )
-			elif self.headerNames[col].startswith( 'H' ):
+			elif self.headerNames[col].startswith( u'H' ):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP )
 			attr.SetReadOnly( True )
 			self.grid.SetColAttr( col, attr )
+	
+	def getResultChoices( self ):
+		model = Model.model
+		competition = model.competition
+		choices = [u'Qualifiers']
+		for tournament in competition.tournaments:
+			for system in tournament.systems:
+				name = ('%s: ' % tournament.name if tournament.name else '') + system.name
+				choices.append( name )
+		choices.append( u'Final Classification' )
+		return choices
 	
 	def fixShowResults( self ):
 		model = Model.model
 		competition = model.competition
 		
-		choices = ['Time Trial']
-		for tournament in competition.tournaments:
-			for system in tournament.systems:
-				name = ('%s: ' % tournament.name if tournament.name else '') + system.name
-				choices.append( name )
-		choices.append( 'Overall' )
-		
+		choices = self.getResultChoices()
 		self.showResults.SetItems( choices )
 		
 		if model.showResults >= len(choices):
@@ -104,18 +117,33 @@ class Results(wx.Panel):
 		model = Model.model
 		toHide = set()
 		for col, h in enumerate(headerNames):
-			if h == 'Name' and not getattr(model, 'resultsShowNames', True):
+			if h == u'Name' and not getattr(model, 'resultsShowNames', True):
 				toHide.add( col )
-			elif h == 'Team' and not getattr(model, 'resultsShowTeams', True):
+			elif h == u'Team' and not getattr(model, 'resultsShowTeams', True):
 				toHide.add( col )
 		return toHide
 	
 	def getGrid( self ):
 		return self.grid
-		
-	def getTitle( self ):
-		return self.showResults.GetStringSelection() + ' Results'
 	
+	def getPhase( self, num = None ):
+		if num is None:
+			num = self.showResults.GetSelection()
+		choices = self.getResultChoices()
+		return choices[num]
+	
+	def getTitle( self ):
+		phase = self.getPhase()
+		title = u'Communiqu\u00E9: {}\n{} {} '.format(
+					self.communiqueNumber.GetValue(),
+					phase,
+					'' if phase.startswith(u'Final') or phase.startswith('Time') else u'Draw Sheet/Intermediate Results' )
+		return title
+	
+	def onClickResults( self, event ):
+		self.commit()
+		event.Skip()
+		
 	def onShowResults( self, event ):
 		Model.model.showResults = self.showResults.GetSelection()
 		self.refresh()
@@ -130,68 +158,57 @@ class Results(wx.Panel):
 		self.showNames.SetValue( getattr(model, 'resultsShowNames', True) )
 		self.showTeams.SetValue( getattr(model, 'resultsShowTeams', True) )
 		
+		self.communiqueNumber.SetValue( model.communique_number.get(self.getPhase(), '') )
+		
 		resultName = self.showResults.GetStringSelection()
 		
-		if resultName.startswith( 'Time' ):
-			self.headerNames = ['Pos', 'Bib', 'Name', 'Team', 'Time']
+		if 'Qualifiers' in resultName:
+			self.headerNames = [u'Pos', u'Bib', u'Name', u'Team', u'Time']
 			hideCols = self.getHideCols( self.headerNames )
 			self.headerNames = [h for c, h in enumerate(self.headerNames) if c not in hideCols]
 			
-			riders = sorted( model.riders, key = lambda r: r.qualifyingTime )
+			riders = sorted( model.riders, key = lambda r: r.keyQualifying() )
 			Utils.AdjustGridSize( self.grid, rowsRequired = len(riders), colsRequired = len(self.headerNames) )
 			self.setColNames()
 			starters = competition.starters
 			for row, r in enumerate(riders):
 				if row < starters:
-					pos = str(row + 1)
+					pos = unicode(row + 1)
+					for col in xrange(self.grid.GetNumberCols()):
+						self.grid.SetCellBackgroundColour( row, col, wx.WHITE )
 				else:
 					pos = 'DNQ'
 					for col in xrange(self.grid.GetNumberCols()):
 						self.grid.SetCellBackgroundColour( row, col, wx.Colour(200,200,200) )
 						
 				writeCell = WriteCell( self.grid, row )
-				for col, value in enumerate([pos, str(r.bib), r.full_name, r.team, '%.3f' % r.qualifyingTime]):
+				for col, value in enumerate([pos, unicode(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
 					if col not in hideCols:
 						writeCell( value )
 					
-		elif resultName == 'Overall':
-			self.headerNames = ['Pos', 'Bib', 'Name', 'Team', 'License']
+		elif 'Final Classification' in resultName:
+			self.headerNames = [u'Pos', u'Bib', u'Name', u'Team', u'License']
 			hideCols = self.getHideCols( self.headerNames )
 			self.headerNames = [h for c, h in enumerate(self.headerNames) if c not in hideCols]
 			
 			results, dnfs, dqs = competition.getResults()
-			Utils.AdjustGridSize( self.grid, rowsRequired = len(results) + len(dnfs) + len(dqs), colsRequired = len(self.headerNames) )
+			Utils.AdjustGridSize( self.grid, rowsRequired = len(model.riders), colsRequired = len(self.headerNames) )
 			self.setColNames()
-			for row, r in enumerate(results):
+			for row, (classification, r) in enumerate(results):
 				writeCell = WriteCell( self.grid, row )
 				if not r:
 					for col in xrange(self.grid.GetNumberCols()):
 						writeCell( '' )
 				else:
-					for col, value in enumerate([row+1, r.bib if r.bib else '', r.full_name, r.team, r.license]):
+					for col, value in enumerate([classification, r.bib if r.bib else '', r.full_name, r.team, r.license]):
 						if col not in hideCols:
-							writeCell( str(value) )
-			
-			row = len(results)
-			for r in dnfs:
-				writeCell = WriteCell( self.grid, row )
-				for col, value in enumerate(['DNF', r.bib, r.full_name, r.team, r.license]):
-					if col not in hideCols:
-						writeCell( str(value) )
-				row += 1
-				
-			for r in dqs:
-				writeCell = WriteCell( self.grid, row )
-				for col, value in enumerate(['DQ', r.bib, r.full_name, r.team, r.license]):
-					if col not in hideCols:
-						writeCell( str(value) )
-				row += 1
+							writeCell( unicode(value) )
 		else:
 			# Find the Tournament and System selected.
 			keepGoing = True
 			for tournament in competition.tournaments:
 				for system in tournament.systems:
-					name = ('%s: ' % tournament.name if tournament.name else '') + system.name
+					name = (u'%s: ' % tournament.name if tournament.name else '') + system.name
 					if name == resultName:
 						keepGoing = False
 						break
@@ -200,9 +217,9 @@ class Results(wx.Panel):
 			
 			heatsMax = max( event.heatsMax for event in system.events )
 			if heatsMax == 1:
-				self.headerNames = ['Event','Bib','Name','Team','    ','Pos','Bib','Name','Team','Time']
+				self.headerNames = [u'Event',u'Bib',u'Name',u'Team',u'    ',u'Pos',u'Bib',u'Name',u'Team',u'Time']
 			else:
-				self.headerNames = ['Event','Bib','Name','Team','H1','H2','H3','    ','Pos','Bib','Name','Team','Time']
+				self.headerNames = [u'Event',u'Bib',u'Name',u'Team',u'H1',u'H2',u'H3',u'    ',u'Pos',u'Bib',u'Name',u'Team',u'Time']
 			hideCols = self.getHideCols( self.headerNames )
 			self.headerNames = [h for c, h in enumerate(self.headerNames) if c not in hideCols]
 			
@@ -213,35 +230,36 @@ class Results(wx.Panel):
 			for row, event in enumerate(system.events):
 				writeCell = WriteCell( self.grid, row )
 				
-				writeCell( str(row+1) )
+				writeCell( unicode(row+1) )
 				
 				riders = [state.labels.get(c, None) for c in event.composition]
-				writeCell( '\n'.join([str(rider.bib) if rider else '' for rider in riders]) )
+				writeCell( u'\n'.join([unicode(rider.bib) if rider and rider.bib else '' for rider in riders]) )
 				if getattr(model, 'resultsShowNames', True):
-					writeCell( '\n'.join([rider.full_name if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([rider.full_name if rider else '' for rider in riders]) )
 				if getattr(model, 'resultsShowTeams', True):
-					writeCell( '\n'.join([rider.team if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([rider.team if rider else '' for rider in riders]) )
 
 				if heatsMax != 1:
 					for heat in xrange(heatsMax):
 						if event.heatsMax != 1:
-							writeCell( '\n'.join(event.getHeatPlaces(heat+1)) )
+							writeCell( u'\n'.join(event.getHeatPlaces(heat+1)) )
 						else:
-							writeCell( '' )
+							writeCell( u'' )
 				
-				writeCell( '===>' )
+				#writeCell( u' ===> ', vert=wx.ALIGN_CENTRE )
+				writeCell( ' '.join(['',Arrow,'']), vert=wx.ALIGN_CENTRE )
 				
 				out = [event.winner] + event.others
 				riders = [state.labels.get(c, None) for c in out]
-				writeCell( '\n'.join( str(i+1) for i in xrange(len(riders))) )
-				writeCell( '\n'.join([str(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
+				writeCell( u'\n'.join( unicode(i+1) for i in xrange(len(riders))) )
+				writeCell( u'\n'.join([unicode(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
 				if getattr(model, 'resultsShowNames', True):
-					writeCell( '\n'.join([rider.full_name if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([rider.full_name if rider else '' for rider in riders]) )
 				if getattr(model, 'resultsShowTeams', True):
-					writeCell( '\n'.join([rider.team if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([rider.team if rider else '' for rider in riders]) )
 				if event.winner in state.labels:
 					try:
-						value = '%.3f' % event.starts[-1].times[1]
+						value = u'%.3f' % event.starts[-1].times[1]
 					except (KeyError, IndexError, ValueError):
 						value = ''
 					writeCell( value )
@@ -250,7 +268,12 @@ class Results(wx.Panel):
 		self.grid.AutoSizeRows( False )
 		
 	def commit( self ):
-		pass
+		model = Model.model
+		phase = self.getPhase()
+		cn = self.communiqueNumber.GetValue()
+		if cn != model.communique_number.get(phase, u''):
+			model.communique_number[phase] = cn
+			model.setChanged()
 		
 ########################################################################
 
@@ -268,6 +291,6 @@ class ResultsFrame(wx.Frame):
 #----------------------------------------------------------------------
 if __name__ == "__main__":
 	app = wx.App(False)
-	SetDefaultData()
+	Model.model = SetDefaultData()
 	frame = ResultsFrame()
 	app.MainLoop()

@@ -91,6 +91,7 @@ class ReorderableGridRowMixin( object ):
 	def copyRow( self, fromRow, toRow ):
 		for c in xrange(self.GetNumberCols()):
 			self.SetCellValue( toRow, c, self.GetCellValue(fromRow, c) )
+			self.SetCellBackgroundColour( toRow, c, self.GetCellBackgroundColour(fromRow, c) )
 		
 	def OnReorderableGridMotion(self, evt):
 		"""We are moving so see whether this should be a Rearrange event or not"""
@@ -111,11 +112,13 @@ class ReorderableGridRowMixin( object ):
 		self.DeselectRow( self._lastRow )
 		
 		lastRowSave = [self.GetCellValue(self._lastRow, c) for c in xrange(self.GetNumberCols())]
+		lastRowBackgroundColourSave = [self.GetCellBackgroundColour(self._lastRow, c) for c in xrange(self.GetNumberCols())]
 		direction = cmp(row, self._lastRow)
 		for r in xrange(self._lastRow, row, direction ):
 			self.copyRow( r + direction, r )
 		for c in xrange(self.GetNumberCols()):
 			self.SetCellValue( row, c, lastRowSave[c] )
+			self.SetCellBackgroundColour( row, c, lastRowBackgroundColourSave[c] )
 		
 		self.SelectRow( row, False )
 		self._lastRow = row
@@ -185,7 +188,7 @@ class KeyboardNavigationGridMixin( object ):
 				else:
 					self.MoveCursorLeft(False)
 			else:
-				if self.GetGridCursorCol() == self.GetNumberCols() - 1 and self.GetGridCursorRow() != grid.GetNumberRows() - 1:
+				if self.GetGridCursorCol() == self.GetNumberCols() - 1 and self.GetGridCursorRow() != self.GetNumberRows() - 1:
 					self.MoveCursorDown(False)
 					for c in xrange(self.GetNumberCols()):
 						self.MoveCursorLeft(False)
@@ -215,7 +218,7 @@ class SaveEditWhenFocusChangesGridMixin( object ):
 ########################################################################
 class CornerReorderableGridLabelRenderer(glr.GridLabelRenderer):
     def __init__(self):
-        self._bmp = bitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'UpDown.png'), wx.BITMAP_TYPE_PNG )
+        self._bmp = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'UpDown.png'), wx.BITMAP_TYPE_PNG )
         
     def Draw(self, grid, dc, rect, rc):
 		if grid._enableReorderRows:

@@ -86,4 +86,5 @@ def Simulate( competition ):
 			print '%2d: %s' % (i+1, r)
 
 if __name__ == '__main__':
-	Simulate( Competitions.SetDefaultData().competition )
+	Model.model = SetDefaultData()
+	Simulate( Model.model.competition )

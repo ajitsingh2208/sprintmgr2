@@ -4,15 +4,6 @@ import os
 import shutil
 import zipfile
 
-distDir = 'dist'
-
-# Cleanup existing dll, pyd and exe files.  The old ones may not be needed, so it is best to clean these up.
-for f in os.listdir(distDir):
-	if f.endswith('.dll') or f.endswith('.pyd') or f.endswith('.exe'):
-		fname = os.path.join(distDir, f)
-		print 'deleting:', fname
-		os.remove( fname )
-		
 setup( windows=
 			[
 				{
@@ -21,6 +12,8 @@ setup( windows=
 				}
 			]
 	 )
+
+distDir = 'dist'
 
 # Copy additional dlls to distribution folder.
 wxHome = r'C:\Python27\Lib\site-packages\wx-2.8-msw-ansi\wx'
@@ -45,8 +38,8 @@ def copyDir( d ):
 			shutil.copy( os.path.join(d, i), os.path.join(destD,i) )
 			
 copyDir( 'images' )
-#copyDir( 'data' )
-#copyDir( 'html' )
+copyDir( 'data' )
+copyDir( 'html' )
 
 # Create the installer
 inno = r'\Program Files\Inno Setup 5\ISCC.exe'
@@ -56,7 +49,7 @@ for drive in ['C', 'D']:
 	if os.path.exists( innoTest ):
 		inno = innoTest
 		break
-cmd = '"' + inno + '" ' + 'SprintMgr.iss'
+cmd = '"' + inno + '" ' + 'CrossMgr.iss'
 print cmd
 os.system( cmd )
 
@@ -88,6 +81,3 @@ z = zipfile.ZipFile(newZipName, "w")
 z.write( newExeName )
 z.close()
 print 'executable compressed.'
-
-shutil.copy( newExeName, r"c:\GoogleDrive\Downloads\Windows\SprintMgr"  )
-

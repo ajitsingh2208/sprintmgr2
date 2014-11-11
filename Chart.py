@@ -3,22 +3,21 @@ import wx.grid as gridlib
 
 import os
 import sys
+import Utils
 from ReorderableGrid import ReorderableGrid, GridCellMultiLineStringRenderer
 from Competitions import SetDefaultData
 import Model
-import Utils
 from Utils import WriteCell
-from Events import FontSize
+from Events import GetFont
 
 class Chart(wx.Panel):
 	""""""
  
 	#----------------------------------------------------------------------
 	def __init__(self, parent):
-		"""Constructor"""
 		wx.Panel.__init__(self, parent)
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 
 		self.title = wx.StaticText(self, wx.ID_ANY, "Competition Table:")
 		self.title.SetFont( font )
@@ -84,7 +83,7 @@ class Chart(wx.Panel):
 		self.showNames.SetValue( getattr(model, 'chartShowNames', True) )
 		self.showTeams.SetValue( getattr(model, 'chartShowTeams', True) )
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 
 		self.headerNames = ['', 'System', 'Event', 'Heats', 'In', 'Bib', 'Name', 'Team', 'H1', 'H2', 'H3', 'Out', 'Bib', 'Name', 'Team']
 		hideCols = self.getHideCols( self.headerNames )
@@ -113,27 +112,27 @@ class Chart(wx.Panel):
 				for i, event in enumerate(system.events):
 					writeCell = WriteCell( self.grid, row, 2 )
 					
-					writeCell( str(i+1) )
-					writeCell( str(event.heatsMax) )
-					writeCell( '\n'.join(event.composition) )
+					writeCell( unicode(i+1) )
+					writeCell( unicode(event.heatsMax) )
+					writeCell( u'\n'.join(event.composition) )
 					
 					riders = [state.labels.get(c, None) for c in event.composition]
-					writeCell( '\n'.join([str(rider.bib) if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([unicode(rider.bib if rider.bib else u'') if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowNames', True):
-						writeCell( '\n'.join([rider.full_name if rider else '' for rider in riders]) )
+						writeCell( u'\n'.join([rider.full_name if rider else u'' for rider in riders]) )
 					if getattr(model, 'chartShowTeams', True):
-						writeCell( '\n'.join([rider.team if rider else '' for rider in riders]) )
+						writeCell( u'\n'.join([rider.team if rider else u'' for rider in riders]) )
 					
 					for heat in xrange(3):
 						if event.heatsMax > 1:
-							writeCell( '\n'.join(event.getHeatPlaces(heat+1)) )
+							writeCell( u'\n'.join(event.getHeatPlaces(heat+1)) )
 						else:
-							writeCell( '' )
+							writeCell( u'' )
 					
 					out = [event.winner] + event.others
-					writeCell( '\n'.join(out) )
+					writeCell( u'\n'.join(out) )
 					riders = [state.labels.get(c, None) for c in out]
-					writeCell( '\n'.join([str(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([unicode(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowNames', True):
 						writeCell( '\n'.join([rider.full_name if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowTeams', True):
@@ -161,7 +160,7 @@ class ChartFrame(wx.Frame):
 #----------------------------------------------------------------------
 if __name__ == "__main__":
 	app = wx.App(False)
-	SetDefaultData()
+	Model.model = SetDefaultData()
 	frame = ChartFrame()
 	frame.panel.refresh()
 	app.MainLoop()

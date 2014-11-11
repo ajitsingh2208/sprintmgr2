@@ -11,16 +11,17 @@ import webbrowser
 import locale
 import traceback
 import xlwt
-locale.setlocale(locale.LC_ALL, '')
-try:
-	localDateFormat = locale.nl_langinfo( locale.D_FMT )
-	localTimeFormat = locale.nl_langinfo( locale.T_FMT )
-except:
-	localDateFormat = '%b %d, %Y'
-	localTimeFormat = '%I:%M%p'
-	
+import wx.lib.agw.flatnotebook as fnb
 import cPickle as pickle
 from optparse import OptionParser
+import codecs
+import base64
+import uuid
+import StringIO
+
+import Utils
+import Model
+import Version
 
 from Properties			import Properties
 from Seeding			import Seeding
@@ -29,21 +30,16 @@ from Events				import Events
 from Results			import Results
 from Chart				import Chart
 from GraphDraw			import GraphDraw
-import Utils
-import Model
-import cStringIO as StringIO
-import Version
-from Competitions import SetDefaultData
-from Printing			import SprintMgrPrintout
-from ExportGrid			import ExportGrid, tag
-from Events import FontSize
-import cStringIO as StringIO
+from Competitions		import SetDefaultData
+from Printing			import SprintMgrPrintout, GraphDrawPrintout
+from ExportGrid			import ExportGrid, tag, writeHtmlHeader
+from FitSheetWrapper	import FitSheetWrapper
+from Events				import FontSize
 
-import wx.lib.agw.advancedsplash as AS
-import openpyxl
+from SetGraphic			import SetGraphicDialog
 
 #----------------------------------------------------------------------------------
-		
+
 def ShowSplashScreen():
 	bitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'SprintMgrSplash.png'), wx.BITMAP_TYPE_PNG )
 	
@@ -55,20 +51,16 @@ def ShowSplashScreen():
 	dc.DrawText( Version.AppVerName.replace('SprintMgr','Version'), w // 20, int(h * 0.4) )
 	dc.SelectObject( wx.NullBitmap )
 	
-	# Show the splash screen.
-	estyle = AS.AS_TIMEOUT | AS.AS_CENTER_ON_PARENT | AS.AS_SHADOW_BITMAP
-	shadow = wx.Colour( 64, 64, 64 )
 	showSeconds = 2.5
-	try:
-		frame = AS.AdvancedSplash(Utils.getMainWin(), bitmap=bitmap, timeout=int(showSeconds*1000),
-								  extrastyle=estyle, shadowcolour=shadow)
-	except:
-		try:
-			frame = AS.AdvancedSplash(Utils.getMainWin(), bitmap=bitmap, timeout=int(showSeconds*1000),
-									  shadowcolour=shadow)
-		except:
-			pass
-			
+	
+	# Show the splash screen.
+	splashStyle = wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT
+	frame = wx.SplashScreen(
+		parent=Utils.getMainWin(),
+		splashStyle=splashStyle,
+		bitmap=bitmap,
+		milliseconds=int(showSeconds*1000) )
+
 #----------------------------------------------------------------------------------
 		
 class MyTipProvider( wx.PyTipProvider ):
@@ -143,32 +135,6 @@ def replaceJsonVar( s, varName, value ):
 	return s.replace( '%s = null' % varName, '%s = %s' % (varName, json.dumps(value)), 1 )
 
 #----------------------------------------------------------------------------------
-class CustomStatusBar(wx.StatusBar):
-    def __init__(self, parent):
-        wx.StatusBar.__init__(self, parent, -1)
-
-        # This status bar has three fields
-        self.SetFieldsCount(3)
-        # Sets the three fields to be relative widths to each other.
-        self.SetStatusWidths([-2, -1, -2])
-
-        # Field 0 ... just text
-        self.SetStatusText("A Custom StatusBar...", 0)
-
-        # We're going to use a timer to drive a 'clock' in the last
-        # field.
-        self.timer = wx.PyTimer(self.Notify)
-        self.timer.Start(1000)
-        self.Notify()
-
-    # Handles events from the timer we started in __init__().
-    # We're using it to drive a 'clock' in field 2 (the third field).
-    def Notify(self):
-        t = time.localtime(time.time())
-        st = time.strftime("%d-%b-%Y   %I:%M:%S", t)
-        self.SetStatusText(st, 2)
-
-#----------------------------------------------------------------------------------
 		
 class MainWin( wx.Frame ):
 	def __init__( self, parent, id = wx.ID_ANY, title='', size=(200,200) ):
@@ -185,11 +151,6 @@ class MainWin( wx.Frame ):
 		
 		self.fileName = None
 		
-		# Setup the objects for the race clock.
-		self.timer = wx.Timer( self, id=wx.NewId() )
-		self.secondCount = 0
-		#self.Bind( wx.EVT_TIMER, self.updateRaceClock, self.timer )
-
 		# Default print options.
 		self.printData = wx.PrintData()
 		self.printData.SetPaperId(wx.PAPER_LETTER)
@@ -202,13 +163,16 @@ class MainWin( wx.Frame ):
 		#-----------------------------------------------------------------------
 		self.fileMenu = wx.Menu()
 
-		self.fileMenu.Append( wx.ID_NEW , "&New...", "Create a new event" )
+		self.fileMenu.Append( wx.ID_NEW , "&New...", "Create a new competition" )
 		self.Bind(wx.EVT_MENU, self.menuNew, id=wx.ID_NEW )
 
-		self.fileMenu.Append( wx.ID_OPEN , "&Open...", "Open an existing event" )
+		self.fileMenu.Append( wx.ID_NEW , "New N&ext...", "Create a new competition from the existing competition" )
+		self.Bind(wx.EVT_MENU, self.menuNewNext, id=wx.ID_NEW )
+
+		self.fileMenu.Append( wx.ID_OPEN , "&Open...", "Open an existing competition" )
 		self.Bind(wx.EVT_MENU, self.menuOpen, id=wx.ID_OPEN )
 
-		self.fileMenu.Append( wx.ID_SAVE , "&Save\tCtrl+S", "Save event" )
+		self.fileMenu.Append( wx.ID_SAVE , "&Save\tCtrl+S", "Save competition" )
 		self.Bind(wx.EVT_MENU, self.menuSave, id=wx.ID_SAVE )
 
 		self.fileMenu.Append( wx.ID_SAVEAS , "Save &As...", "Save to a different filename" )
@@ -236,6 +200,12 @@ class MainWin( wx.Frame ):
 
 		self.fileMenu.AppendSeparator()
 		
+		idCur = wx.NewId()
+		self.fileMenu.Append( idCur , "Export Final &Classification to SeriesMgr Excel...", "Export Final Classification to SeriesMgr Excel (.xls)" )
+		self.Bind(wx.EVT_MENU, self.menuExportFinalClassificationToExcel, id=idCur )
+		
+		self.fileMenu.AppendSeparator()
+		
 		recent = wx.Menu()
 		self.fileMenu.AppendMenu(wx.ID_ANY, "&Recent Files", recent)
 		self.filehistory.UseMenu( recent )
@@ -255,10 +225,11 @@ class MainWin( wx.Frame ):
 		# Configure the field of the display.
 
 		sty = wx.BORDER_SUNKEN
-		self.notebook		= wx.Notebook(	self, 1000, style=sty )
+		self.notebook = fnb.FlatNotebook(self, wx.ID_ANY, agwStyle=fnb.FNB_VC8|fnb.FNB_NO_X_BUTTON)
 		font = wx.FontFromPixelSize( wx.Size(0,(FontSize*4)//5), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
 		self.notebook.SetFont( font )
-		self.notebook.Bind( wx.EVT_NOTEBOOK_PAGE_CHANGED, self.onPageChanging )
+		#self.notebook.Bind( wx.EVT_NOTEBOOK_PAGE_CHANGED, self.onPageChanging )
+		self.notebook.Bind( fnb.EVT_FLATNOTEBOOK_PAGE_CHANGED, self.onPageChanging )
 		
 		# Add all the pages to the notebook.
 		self.pages = []
@@ -271,17 +242,36 @@ class MainWin( wx.Frame ):
 			[ 'properties',		Properties,			'Properties' ],
 			[ 'seeding',		Seeding,			'Seeding' ],
 			[ 'qualifiers',		Qualifiers,			'Qualifiers' ],
+			[ 'results',		Results,			'Start Lists & Results' ],
 			[ 'events',			Events,				'Events' ],
-			[ 'results',		Results,			'Results' ],
-			[ 'chart',			Chart,				'Table' ],
-			[ 'graphDraw',		GraphDraw,			'Graph' ],
+			[ 'graphDraw',		GraphDraw,			'Summary' ],
+			[ 'chart',			Chart,				'Full Table' ],
 		]
 		
 		for i, (a, c, n) in enumerate(self.attrClassName):
 			setattr( self, a, c(self.notebook) )
 			addPage( getattr(self, a), n )
 			
-		self.notebook.ChangeSelection( 0 )
+		#self.notebook.ChangeSelection( 0 )
+		self.notebook.SetSelection( 0 )
+		
+		#-----------------------------------------------------------------------
+		self.toolsMenu = wx.Menu()
+		
+		idCur = wx.NewId()
+		self.toolsMenu.Append( idCur , _("Copy Log File to &Clipboard..."), _("Copy Log File to &Clipboard") )
+		self.Bind(wx.EVT_MENU, self.menuCopyLogFileToClipboard, id=idCur )
+
+		self.menuBar.Append( self.toolsMenu, _("&Tools") )
+		
+		#-----------------------------------------------------------------------
+		self.optionsMenu = wx.Menu()
+		
+		idCur = wx.NewId()
+		self.optionsMenu.Append( idCur , _("Set &Graphic..."), _("Set Graphic for Output") )
+		self.Bind(wx.EVT_MENU, self.menuSetGraphic, id=idCur )
+		
+		self.menuBar.Append( self.optionsMenu, _("&Options") )
 		
 		#-----------------------------------------------------------------------
 		self.helpMenu = wx.Menu()
@@ -313,9 +303,7 @@ class MainWin( wx.Frame ):
 		sizer.Add( self.notebook, 1, flag=wx.EXPAND )
 		self.SetSizer( sizer )
 		
-		self.showPageName( 'Properties' )
-		self.GetSizer().Layout()
-		self.Refresh()
+		wx.CallAfter( self.Refresh )
 
 	def resetEvents( self ):
 		self.events.reset()
@@ -369,19 +357,30 @@ class MainWin( wx.Frame ):
 		)
 		return title
 	
+	def setFontSize( self, fontSize ):
+		font = wx.FontFromPixelSize( wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		for attr, _1, _2 in self.attrClassName:
+			page = getattr( self, attr )
+			Utils.ChangeFontInChildren( page, font )
+			page.GetSizer().Layout()
+		Events.FontSize = fontSize
+	
 	def menuPrintPreview( self, event ):
 		self.commit()
+		title = self.getTitle()
 		page = self.pages[self.notebook.GetSelection()]
 		try:
 			grid = page.getGrid()
-		except:
-			return
+			printout = SprintMgrPrintout( title, grid )
+			printout2 = SprintMgrPrintout( title, grid )
+		except AttributeError:
+			if page == self.graphDraw:
+				printout = GraphDrawPrintout( title, page )
+				printout2 = GraphDrawPrintout( title, page )
+			else:
+				return
 		
-		title = self.getTitle()
-			
 		data = wx.PrintDialogData(self.printData)
-		printout = SprintMgrPrintout( title, grid )
-		printout2 = SprintMgrPrintout( title, grid )
 		self.preview = wx.PrintPreview(printout, printout2, data)
 
 		self.preview.SetZoom( 110 )
@@ -397,21 +396,23 @@ class MainWin( wx.Frame ):
 
 	def menuPrint( self, event ):
 		self.commit()
+		title = self.getTitle()
 		page = self.pages[self.notebook.GetSelection()]
 		try:
 			grid = page.getGrid()
-		except:
-			return
+			printout = SprintMgrPrintout( title, grid )
+		except AttributeError:
+			if page == self.graphDraw:
+				printout = GraphDrawPrintout( title, page )
+			else:
+				return
 		
 		pdd = wx.PrintDialogData(self.printData)
 		pdd.SetAllPages( 1 )
 		pdd.EnablePageNumbers( 0 )
 		pdd.EnableHelp( 0 )
 		
-		title = self.getTitle()
-		
 		printer = wx.Printer(pdd)
-		printout = SprintMgrPrintout( title, grid )
 
 		if not printer.Print(self, printout, True):
 			if printer.GetLastError() == wx.PRINTER_ERROR:
@@ -456,7 +457,8 @@ class MainWin( wx.Frame ):
 		title = self.getTitle()
 		
 		wb = xlwt.Workbook()
-		sheetName = self.attrClassName[self.notebook.GetSelection()][2]
+		sheetName = pageTitle
+		sheetName = re.sub('[+!#$%&+~`".:;|\\/?*\[\] ]+', ' ', sheetName)[:31]
 		sheetCur = wb.add_sheet( sheetName )
 		export = ExportGrid( title, grid )
 		export.toExcelSheet( sheetCur )
@@ -470,13 +472,115 @@ class MainWin( wx.Frame ):
 						'Cannot write "%s".\n\nCheck if this spreadsheet is open.\nIf so, close it, and try again.' % xlFName,
 						'Excel File Error', iconMask=wx.ICON_ERROR )
 						
+	def menuExportFinalClassificationToExcel( self, event ):
+		self.commit()
+		
+		pageTitle = 'Final Classification'
+		
+		if not self.fileName or len(self.fileName) < 4:
+			Utils.MessageOK(self, 'You must Save before you can Export to Excel', 'Excel Write')
+			return
+			
+		model = Model.model
+		competition = model.competition
+
+		pageTitle = Utils.RemoveDisallowedFilenameChars( pageTitle.replace('/', '_') )
+		xlFName = self.fileName[:-4] + '-' + pageTitle + ' Export.xls'
+		dlg = wx.DirDialog( self, 'Folder to write "%s"' % os.path.basename(xlFName),
+						style=wx.DD_DEFAULT_STYLE, defaultPath=os.path.dirname(xlFName) )
+		ret = dlg.ShowModal()
+		dName = dlg.GetPath()
+		dlg.Destroy()
+		if ret != wx.ID_OK:
+			return
+
+		xlFName = os.path.join( dName, os.path.basename(xlFName) )
+
+		title = self.getTitle()
+		
+		wb = xlwt.Workbook()
+		sheetName = 'Sprint Final Classification'
+		sheetName = re.sub('[+!#$%&+~`".:;|\\/?*\[\] ]+', ' ', sheetName)[:31]
+
+		sheetCur = wb.add_sheet( sheetName )
+		sheetFit = FitSheetWrapper( sheetCur )
+		
+		headerNames = [u'Pos', u'Bib', u'LastName', u'FirstName', u'Team', u'License', u'Category']
+		leftJustifyCols = { h for h in headerNames if h not in {u'Pos', u'Bib'} }
+		
+		leftStyle = xlwt.XFStyle()
+		leftStyle.alignment.horz = xlwt.Alignment.HORZ_LEFT
+		
+		rightStyle = xlwt.XFStyle()
+		rightStyle.alignment.horz = xlwt.Alignment.HORZ_RIGHT
+		
+		leftHeaderStyle = xlwt.XFStyle()
+		leftHeaderStyle.borders.bottom = xlwt.Borders.MEDIUM
+		leftHeaderStyle.font.bold = True
+		leftHeaderStyle.alignment.horz = xlwt.Alignment.HORZ_LEFT
+		leftHeaderStyle.alignment.wrap = xlwt.Alignment.WRAP_AT_RIGHT
+	
+		rightHeaderStyle = xlwt.XFStyle()
+		rightHeaderStyle.borders.bottom = xlwt.Borders.MEDIUM
+		rightHeaderStyle.font.bold = True
+		rightHeaderStyle.alignment.horz = xlwt.Alignment.HORZ_RIGHT
+		rightHeaderStyle.alignment.wrap = xlwt.Alignment.WRAP_AT_RIGHT
+	
+		rowTop = 0
+		results, dnfs, dqs = competition.getResults()
+		for col, c in enumerate(headerNames):
+			sheetFit.write( rowTop, col, c, leftHeaderStyle if c in leftJustifyCols else rightHeaderStyle, bold=True )
+		rowTop += 1
+		
+		for row, r in enumerate(results):
+			if r:
+				for col, value in enumerate([row+1, r.bib if r.bib else u'', r.last_name.upper(), r.first_name, r.team, r.license, model.category]):
+					sheetFit.write( rowTop, col, value, leftStyle if headerNames[col] in leftJustifyCols else rightStyle )
+			rowTop += 1
+		
+		for r in dnfs:
+			for col, value in enumerate([u'DNF', r.bib if r.bib else u'', r.last_name.upper(), r.first_name, r.team, r.license, model.category]):
+				sheetFit.write( rowTop, col, value, leftStyle if headerNames[col] in leftJustifyCols else rightStyle )
+			rowTop += 1
+			
+		for r in dqs:
+			for col, value in enumerate([u'DQ', r.bib if r.bib else u'', r.last_name.upper(), r.first_name, r.team, r.license, model.category]):
+				sheetFit.write( rowTop, col, value, leftStyle if headerNames[col] in leftJustifyCols else rightStyle )
+			rowTop += 1
+			
+		for r in model.getDNQs():
+			for col, value in enumerate([u'DQ', r.bib if r.bib else u'', r.last_name.upper(), r.first_name, r.team, r.license, model.category]):
+				sheetFit.write( rowTop, col, value, leftStyle if headerNames[col] in leftJustifyCols else rightStyle )
+			rowTop += 1
+
+		try:
+			wb.save( xlFName )
+			webbrowser.open( xlFName, new = 2, autoraise = True )
+			Utils.MessageOK(self, 'Excel file written to:\n\n   %s' % xlFName, 'Excel Export')
+		except IOError:
+			Utils.MessageOK(self,
+						'Cannot write "%s".\n\nCheck if this spreadsheet is open.\nIf so, close it, and try again.' % xlFName,
+						'Excel File Error', iconMask=wx.ICON_ERROR )
+	
 	def menuExportToHtml( self, event ):
 		self.commit()
 		iSelection = self.notebook.GetSelection()
 		page = self.pages[iSelection]
+		
+		grid = None
+		image = None
 		try:
 			grid = page.getGrid()
-		except:
+		except Exception as e:
+			pass
+		
+		if not grid:
+			try:
+				image = page.getImage()
+			except Exception as e:
+				pass
+				
+		if not (grid or image):
 			return
 		
 		try:
@@ -485,12 +589,12 @@ class MainWin( wx.Frame ):
 			pageTitle = self.attrClassName[iSelection][2]
 		
 		if not self.fileName or len(self.fileName) < 4:
-			Utils.MessageOK(self, 'You must Save before you can Export to Html', 'Excel Export')
+			Utils.MessageOK(self, u'You must Save before you can Export to Html', u'Excel Export')
 			return
 
-		pageTitle = Utils.RemoveDisallowedFilenameChars( pageTitle.replace('/', '_') )
+		pageTitle = Utils.RemoveDisallowedFilenameChars( pageTitle.replace(u'/', u'_') )
 		htmlFName = self.fileName[:-4] + '-' + pageTitle + '.html'
-		dlg = wx.DirDialog( self, 'Folder to write "%s"' % os.path.basename(htmlFName),
+		dlg = wx.DirDialog( self, u'Folder to write "%s"' % os.path.basename(htmlFName),
 						style=wx.DD_DEFAULT_STYLE, defaultPath=os.path.dirname(htmlFName) )
 		ret = dlg.ShowModal()
 		dName = dlg.GetPath()
@@ -502,12 +606,13 @@ class MainWin( wx.Frame ):
 
 		title = self.getTitle()
 		
-		html = StringIO.StringIO()
+		htmlStream = StringIO.StringIO()
+		html = codecs.getwriter('utf8')( htmlStream )
 		
 		with tag(html, 'html'):
 			with tag(html, 'head'):
 				with tag(html, 'title'):
-					html.write( title.replace('\n', ' ') )
+					html.write( title.replace(u'\n', u' ') )
 				with tag(html, 'meta', dict(charset="UTF-8", author="Edward Sitarski", copyright="Edward Sitarski, 2013", generator="SprintMgr")):
 					pass
 				with tag(html, 'style', dict( type="text/css")):
@@ -579,23 +684,32 @@ table.results tr td.fastest{
 @media print { .noprint { display: none; } }''' )
 
 			with tag(html, 'body'):
-				ExportGrid( title, grid ).toHtml(html)
+				if grid:
+					ExportGrid( title, grid ).toHtml(html)
+				elif image:
+					pngFName = os.path.join( dName, '{}.png'.format(uuid.uuid4()) )
+					image.SaveFile( pngFName, wx.BITMAP_TYPE_PNG )
+					with open(pngFName, 'rb') as fp:
+						data = base64.b64encode( fp.read() )
+					os.remove( pngFName )
+					writeHtmlHeader( html, title )
+					html.write( '<img id="idResultsSummary" src="data:image/png;base64,%s" />' % data )
 		
-		html = html.getvalue()
+		html = htmlStream.getvalue()
 		
 		try:
 			with open(htmlFName, 'wb') as fp:
 				fp.write( html )
 			webbrowser.open( htmlFName, new = 2, autoraise = True )
-			Utils.MessageOK(self, 'Html file written to:\n\n   %s' % htmlFName, 'Html Write')
+			Utils.MessageOK(self, u'Html file written to:\n\n   %s' % htmlFName, 'Html Write')
 		except IOError:
 			Utils.MessageOK(self,
-						'Cannot write "%s".\n\nCheck if this spreadsheet is open.\nIf so, close it, and try again.' % htmlFName,
-						'Html File Error', iconMask=wx.ICON_ERROR )
+						u'Cannot write "%s".\n\nCheck if this file is open.\nIf so, close it, and try again.' % htmlFName,
+						u'Html File Error', iconMask=wx.ICON_ERROR )
 	
 	#--------------------------------------------------------------------------------------------
 	def onCloseWindow( self, event ):
-		self.showPageName( 'Results' )
+		self.showResultsPage()
 		self.writeRace()
 		wx.Exit()
 
@@ -609,22 +723,63 @@ table.results tr td.fastest{
 			pickle.dump( model, fp, 2 )
 		model.setChanged( False )
 		self.setTitle()
+		
+	def showResultsPage( self ):
+		for i, (a, c, n) in enumerate(self.attrClassName):
+			if u'Results' in n:
+				self.showPage( i )
+				break
 
 	def menuNew( self, event ):
-		self.showPageName( 'Results' )
+		self.showResultsPage()
 		model = Model.model
 		if model.changed:
-			ret = Utils.MessageOKCancel( self, 'Save Existing Competition?', 'Save Existing Competition?' ) 
+			ret = Utils.MessageOKCancel( self, u'Save Existing Competition?', u'Save Existing Competition?' ) 
 			if ret == wx.ID_CANCEL:
 				return
 			if ret == wx.ID_OK:
 				self.writeRace()
 				
-		SetDefaultData()
+		Model.model = SetDefaultData()
 		self.fileName = ''
 		self.showPageName( 'Properties' )
 		self.refresh()
 	
+	def menuNewNext( self, event ):
+		if not self.fileName:
+			self.menuSaveAs( event )
+			return
+	
+		self.showResultsPage()
+		model = Model.model
+		if model.changed and Utils.MessageOKCancel(self, u'Save Existing Competition?', u'Save Existing Competition?')  == wx.ID_OK:
+			try:
+				self.writeRace()
+			except:
+				Utils.MessageOK(self, u'Write Failed.  Competition NOT saved.\n\n"{}".'.format(self.fileName),
+									u'Write Failed', iconMask=wx.ICON_ERROR )
+				return
+			
+		fileName, ext = os.path.splitext( self.fileName )
+		s = re.search( ' \((\d+)\)$', fileName )
+		if s:
+			fileName = fileName[:fileName.index(' (')] + ' ({})'.format(int(s.group(1))+1) + ext
+		else:
+			fileName = fileName + ' (2)' + ext
+			
+		if (	os.path.isfile(fileName) and
+				Utils.MessageOKCancel(self, u'File exists.  Replace?:\n\n"{}"'.format(fileName), u'File exists' ) != wx.ID_OK ):
+			return
+		
+		self.fileName = fileName
+				
+		properties = model.getProperties()
+		Model.model = model = SetDefaultData()
+		model.setProperties( properties )
+		
+		self.showPageName( 'Properties' )
+		self.refresh()
+			
 	def updateRecentFiles( self ):
 		self.filehistory.AddFileToHistory(self.fileName)
 		self.filehistory.Save(self.config)
@@ -637,26 +792,31 @@ table.results tr td.fastest{
 			with open(fileName, 'rb') as fp:
 				Model.model = pickle.load( fp )
 		except IOError:
-			Utils.MessageOK(self, 'Cannot Open File "%s".' % fileName, 'Cannot Open File', iconMask=wx.ICON_ERROR )
+			Utils.MessageOK(self, u'Cannot Open File "{}".'.format(fileName), u'Cannot Open File', iconMask=wx.ICON_ERROR )
 			return
 		
 		Model.model.competition.fixHangingStarts()	# Fix up any interrupted starts.
 		self.fileName = fileName
 		self.updateRecentFiles()
 		Model.model.setChanged( False )
+		# Model.model.competition.reset()
+		Model.model.competition.propagate()
 		self.refreshAll()
-		self.showPageName( 'Properties' )
+		if Model.model.canReassignStarters():
+			self.showPageName( 'Properties' )
+		else:
+			self.showPageName( 'Summary' )
 
 	def menuOpen( self, event ):
 		if Model.model.changed:
-			if Utils.MessageOKCancel(self, 'You have Unsaved Changes.  Save Now?', 'Unsaved Changes') == wx.ID_OK:
+			if Utils.MessageOKCancel(self, u'You have Unsaved Changes.  Save Now?', u'Unsaved Changes') == wx.ID_OK:
 				self.writeRace()
 			else:
 				return
 				
-		dlg = wx.FileDialog( self, message="Choose a file for your Competition",
+		dlg = wx.FileDialog( self, message=u"Choose a SprintMgr file",
 							defaultFile = '',
-							wildcard = 'SprintMgr files (*.smr)|*.smr',
+							wildcard = u'SprintMgr files (*.smr)|*.smr',
 							style=wx.OPEN | wx.CHANGE_DIR )
 		if dlg.ShowModal() == wx.ID_OK:
 			self.openRace( dlg.GetPath() )
@@ -670,21 +830,23 @@ table.results tr td.fastest{
 		try:
 			self.writeRace()
 		except:
-			Utils.MessageOK(self, 'Write Failed.  Competition NOT saved."%s".' % fileName, 'Write Failed', iconMask=wx.ICON_ERROR )
+			Utils.MessageOK(self, u'Write Failed.  Competition NOT saved.\n\n"{}".'.format(fileName),
+								u'Write Failed', iconMask=wx.ICON_ERROR )
 		self.updateRecentFiles()
 
 	def setTitle( self ):
+		model = Model.model
 		if self.fileName:
-			title = '%s%s - %s' % ('*' if Model.model.changed else '', self.fileName, Version.AppVerName)
+			title = u'{}: {}{} - {}'.format(model.category, '*' if model.changed else '', self.fileName, Version.AppVerName)
 		else:
-			title = Version.AppVerName
+			title = u'{}: {}'.format( model.category, Version.AppVerName )
 		self.SetTitle( title )
 			
 	def menuSaveAs( self, event ):
-		dlg = wx.FileDialog( self, message="Choose a file for your Competition",
+		dlg = wx.FileDialog( self, message=u"Choose a file for your Competition",
 							defaultFile = '',
-							wildcard = 'SprintMgr files (*.smr)|*.smr',
-							style=wx.OPEN | wx.CHANGE_DIR )
+							wildcard = u'SprintMgr files (*.smr)|*.smr',
+							style=wx.SAVE | wx.CHANGE_DIR )
 		response = dlg.ShowModal()
 		if response == wx.ID_OK:
 			fileName = dlg.GetPath()
@@ -695,7 +857,7 @@ table.results tr td.fastest{
 		try:
 			with open(fileName, 'rb') as fp:
 				pass
-			if not Utils.MessageOKCancel(self, 'File Exists.  Replace?', 'File Exists'):
+			if not Utils.MessageOKCancel(self, u'File Exists.  Replace?', u'File Exists'):
 				return
 		except IOError:
 			pass
@@ -704,7 +866,7 @@ table.results tr td.fastest{
 			with open(fileName, 'wb') as fp:
 				pass
 		except:
-			Utils.MessageOK(self, 'Cannot open file "%s".' % fileName, 'Cannot Open File', iconMask=wx.ICON_ERROR )
+			Utils.MessageOK(self, u'Cannot open file "{}".'.format(fileName), u'Cannot Open File', iconMask=wx.ICON_ERROR )
 			return
 			
 		self.fileName = fileName
@@ -718,14 +880,74 @@ table.results tr td.fastest{
 		
 	def menuExit(self, event):
 		if Model.model.changed:
-			response = Utils.MessageYesNoCancel(self, 'You have Unsaved Changes.\nSave Before Closing?', 'Unsaved Changes')
+			response = Utils.MessageYesNoCancel(self, u'You have Unsaved Changes.\nSave Before Closing?', u'Unsaved Changes')
 			if response == wx.ID_CANCEL:
 				return
 			if response == wx.ID_OK:
 				self.writeRace()
 				
 		self.onCloseWindow( event )
+	
+	def menuCopyLogFileToClipboard( self, event ):
+		try:
+			logData = open(redirectFileName).read()
+		except IOError:
+			Utils.MessageOK(self, _("Unable to open log file."), _("Error"), wx.ICON_ERROR )
+			return
+			
+		logData = logData.split( '\n' )
+		logData = logData[-1000:]
+		logData = '\n'.join( logData )
+		
+		dataObj = wx.TextDataObject()
+		dataObj.SetText(logData)
+		if wx.TheClipboard.Open():
+			wx.TheClipboard.SetData( dataObj )
+			wx.TheClipboard.Close()
+			Utils.MessageOK(self, _("Log file copied to clipboard.\nYou can now paste it into an email."), _("Success") )
+		else:
+			Utils.MessageOK(self, _("Unable to open the clipboard."), _("Error"), wx.ICON_ERROR )
 
+	def menuSetGraphic( self, event ):
+		imgPath = self.getGraphicFName()
+		dlg = SetGraphicDialog( self, graphic = imgPath )
+		if dlg.ShowModal() == wx.ID_OK:
+			imgPath = dlg.GetValue()
+			self.config.Write( 'graphic', imgPath )
+			self.config.Flush()
+		dlg.Destroy()
+	
+	def getGraphicFName( self ):
+		defaultFName = os.path.join(Utils.getImageFolder(), 'SprintMgr.png')
+		graphicFName = self.config.Read( 'graphic', defaultFName )
+		if graphicFName != defaultFName:
+			try:
+				with open(graphicFName, 'rb') as f:
+					return graphicFName
+			except IOError:
+				pass
+		return defaultFName
+	
+	def getGraphicBase64( self ):
+		graphicFName = self.getGraphicFName()
+		if not graphicFName:
+			return None
+		fileType = os.path.splitext(graphicFName)[1].lower()
+		if not fileType:
+			return None
+		fileType = fileType[1:]
+		if fileType == 'jpg':
+			fileType = 'jpeg'
+		if fileType not in ['png', 'gif', 'jpeg']:
+			return None
+		try:
+			with open(graphicFName, 'rb') as f:
+				b64 = 'data:image/%s;base64,%s' % (fileType, base64.standard_b64encode(f.read()))
+				return b64
+		except IOError:
+			pass
+		return None
+		
 	def menuHelpQuickStart( self, event ):
 		Utils.showHelp( 'QuickStart.html' )
 	
@@ -742,19 +964,23 @@ table.results tr td.fastest{
 		info.Version = ''
 		info.Copyright = "(C) 2013"
 		info.Description = wordwrap(
-			"Manage a Track Sprint competition efficiently and easily.\n\n"
+			"Manage a Track Sprint, Keirin, XCE or 4-Cross competition efficiently and easily.\n\n"
 			"A brief list of features:\n"
 			"   * Easy Seeding of qualifiers\n"
-			"   * Always shows the available events for all riders\n"
+			"   * Automatic rider renumbering (for XCE and 4-Cross)\n"
+			"   * Randomization for seeding unknown riders\n"
+			"   * Always shows the available events at all rounds of the competition\n"
+			"   * Run available events out-of-order if necessary\n"
 			"   * Manages start positions\n"
 			"   * Handles Restarts, Relegations, DQ, DNF and DNS\n"
 			"   * Automatically promotes riders to the next event based on their results\n"
 			"   * Shows results at all times\n"
+			"   * Graphical summary shows riders progression through the chart\n"
 			"",
 			500, wx.ClientDC(self))
 		info.WebSite = ("http://sites.google.com/site/crossmgrsoftware/", "CrossMgr Home Page")
 		info.Developers = [
-					"Edward Sitarski (edward.sitarski@gmail.com)"
+					"Edward Sitarski (edward.sitarski@gmail.com)",
 					]
 
 		licenseText = "User Beware!\n\n" \
@@ -762,9 +988,9 @@ table.results tr td.fastest{
 			"Feedback is sincerely appreciated.\n\n" \
 			"Donations are also appreciated - see website for details.\n\n" \
 			"CRITICALLY IMPORTANT MESSAGE!\n" \
-			"This program is not warrented for any use whatsoever.\n" \
+			"This program is not warranted for any use whatsoever.\n" \
 			"It may not produce correct results, it might lose your data.\n" \
-			"The authors of this program assume no reponsibility or liability for data loss or erronious results produced by this program.\n\n" \
+			"The authors of this program assume no responsibility or liability for data loss or erroneous results produced by this program.\n\n" \
 			"Use entirely at your own risk.\n" \
 			"Do not come back and tell me that this program screwed up your event!\n" \
 			"Computers fail, screw-ups happen.  Always use a paper manual backup."
@@ -778,9 +1004,14 @@ table.results tr td.fastest{
 		return self.pages[self.notebook.GetSelection()]
 	
 	def showPage( self, iPage ):
-		self.callPageCommit( self.notebook.GetSelection() )
+		try:
+			self.writeRace()
+		except:
+			self.commit()
 		self.callPageRefresh( iPage )
-		self.notebook.ChangeSelection( iPage )
+		#self.notebook.ChangeSelection( iPage )
+		self.notebook.SetSelection( iPage )
+		self.pages[self.notebook.GetSelection()].Layout()
 		self.Layout()
 
 	def showPageName( self, name ):
@@ -793,14 +1024,13 @@ table.results tr td.fastest{
 	def commit( self ):
 		self.callPageCommit( self.notebook.GetSelection() )
 		self.setTitle()
-				
+	
 	def refreshCurrentPage( self ):
 		self.setTitle()
 		self.callPageRefresh( self.notebook.GetSelection() )
 
 	def refresh( self ):
 		self.refreshCurrentPage()
-		#self.updateRaceClock()
 
 	def callPageRefresh( self, i ):
 		try:
@@ -816,8 +1046,13 @@ table.results tr td.fastest{
 			pass
 
 	def onPageChanging( self, event ):
+		notebook = event.GetEventObject()
 		self.callPageCommit( event.GetOldSelection() )
 		self.callPageRefresh( event.GetSelection() )
+		try:
+			Utils.writeLog( u'page: {}\n'.format(notebook.GetPage(event.GetSelection()).__class__.__name__) )
+		except IndexError:
+			pass
 		event.Skip()	# Required to properly repaint the screen.
 
 	def refreshAll( self ):
@@ -836,20 +1071,38 @@ def MainLoop():
 	global dataDir
 	global redirectFileName
 	
+	app = wx.App( False )
+	app.SetAppName("SprintMgr")
+	
 	random.seed()
-	SetDefaultData()
 
-	parser = OptionParser( usage = "usage: %prog [options] [RaceFile.cmn]" )
-	parser.add_option("-f", "--file", dest="filename", help="race file", metavar="RaceFile.cmn")
+	parser = OptionParser( usage = "usage: %prog [options] [EventFile.tp5]" )
+	parser.add_option("-f", "--file", dest="filename", help="event file", metavar="EventFile.tp5")
 	parser.add_option("-q", "--quiet", action="store_false", dest="verbose", default=True, help='hide splash screen')
-	parser.add_option("-r", "--regular", action="store_false", dest="fullScreen", default=False, help='regular size (not full screen)')
+	parser.add_option("-r", "--regular", action="store_false", dest="fullScreen", default=True, help='regular size (not full screen)')
 	(options, args) = parser.parse_args()
 
 	dataDir = Utils.getHomeDir()
 	redirectFileName = os.path.join(dataDir, 'SprintMgr.log')
+	
+	if __name__ == '__main__':
+		Utils.disable_stdout_buffering()
+	else:
+		try:
+			logSize = os.path.getsize( redirectFileName )
+			if logSize > 1000000:
+				os.remove( redirectFileName )
+		except:
+			pass
+	
+		try:
+			app.RedirectStdio( redirectFileName )
+		except:
+			pass
 			
-	app = wx.PySimpleApp()
-	app.SetAppName("SprintMgr")
+	Utils.writeLog( 'start: {}'.format(Version.AppVerName) )
+			
+	Model.model = SetDefaultData()
 	
 	# Configure the main window.
 	sWidth, sHeight = wx.GetDisplaySize()
@@ -857,6 +1110,7 @@ def MainLoop():
 	if options.fullScreen:
 		mainWin.Maximize( True )
 		
+	Model.model = SetDefaultData()
 	mainWin.refreshAll()
 	mainWin.CenterOnScreen()
 	mainWin.Show()
@@ -889,7 +1143,11 @@ def MainLoop():
 
 	# Start processing events.
 	mainWin.GetSizer().Layout()
-	app.MainLoop()
+	try:
+		app.MainLoop()
+	except:
+		xc = traceback.format_exception(*sys.exc_info())
+		wx.MessageBox(''.join(xc))
 
 if __name__ == '__main__':
 	MainLoop()

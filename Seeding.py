@@ -3,31 +3,46 @@ import wx.grid as gridlib
 
 import os
 import sys
+import random
 import TestData
 from ReorderableGrid import ReorderableGrid
 import Model
 import Utils
 from Events import FontSize
+from ReadStartList import ImportStartList
 
 class Seeding(wx.Panel):
-	""""""
- 
 	#----------------------------------------------------------------------
+	
+	phase = 'Seeding'
+
 	def __init__(self, parent):
-		"""Constructor"""
 		wx.Panel.__init__(self, parent)
  
 		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
 		
-		self.title = wx.StaticText(self, wx.ID_ANY, "Enter Rider details and set Qualifing Start Order.  To quickly delete a rider, set Bib to 0")
+		self.title = wx.StaticText(self, wx.ID_ANY, "Seeding (set Bib to 0 to delete)    ")
 		self.title.SetFont( font )
+		
+		self.communiqueLabel = wx.StaticText( self, wx.ID_ANY, 'Communique:' )
+		self.communiqueLabel.SetFont( font )
+		self.communiqueNumber = wx.TextCtrl( self, wx.ID_ANY, '', size=(64,-1) )
+		self.communiqueNumber.SetFont( font )
+		
+		self.randomizeButton = wx.Button( self, wx.ID_ANY, 'Randomize...' )
+		self.randomizeButton.Bind( wx.EVT_BUTTON, self.doRandomize )
+		self.randomizeButton.SetFont( font )
  
-		self.headerNames = ['Bib', 'First Name', 'Last Name', 'Team', 'License']
+		self.importButton = wx.Button( self, wx.ID_ANY, 'Import From Excel' )
+		self.importButton.Bind( wx.EVT_BUTTON, self.doImportFromExcel )
+		self.importButton.SetFont( font )
+ 
+		self.headerNames = ['Bib', 'First Name', 'Last Name', 'Team', 'Team Code', 'License']
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.DisableDragRowSize()
 		self.grid.SetRowLabelSize( 64 )
-		self.grid.CreateGrid( 36, len(self.headerNames) )
+		self.grid.CreateGrid( 56, len(self.headerNames) )
 		self.setColNames()
 
 		# Set specialized editors for appropriate columns.
@@ -40,8 +55,16 @@ class Seeding(wx.Panel):
 				attr.SetEditor( gridlib.GridCellNumberEditor() )
 			self.grid.SetColAttr( col, attr )
 		
+		hs = wx.BoxSizer( wx.HORIZONTAL )
+		hs.Add( self.title, 0, flag=wx.ALIGN_CENTRE_VERTICAL )
+		hs.Add( self.communiqueLabel, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
+		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border = 4 )
+		hs.AddStretchSpacer()
+		hs.Add( self.randomizeButton, 0, flag = wx.ALL, border = 4 )
+		hs.Add( self.importButton, 0, flag = wx.ALL, border = 4 )
+		
 		sizer = wx.BoxSizer(wx.VERTICAL)
-		sizer.Add( self.title, 0, flag=wx.ALL, border = 6 )
+		sizer.Add( hs, 0, flag=wx.ALL|wx.EXPAND, border = 6 )
 		sizer.Add(self.grid, 1, flag=wx.EXPAND|wx.ALL, border = 6)
 		self.SetSizer(sizer)
 		
@@ -55,7 +78,7 @@ class Seeding(wx.Panel):
 		testData = TestData.getTestData()
 		for row, data in enumerate(testData):
 			for col, d in enumerate(data):
-				self.grid.SetCellValue( row, col, str(d) )
+				self.grid.SetCellValue( row, col, unicode(d) )
 		
 		# Fix up the column and row sizes.
 		self.grid.AutoSizeColumns( False )
@@ -63,29 +86,68 @@ class Seeding(wx.Panel):
 		
 	def getGrid( self ):
 		return self.grid
+	
+	def doRandomize( self, event ):
+		self.commit()
+		self.refresh()
 		
+		selectedRows = self.grid.GetSelectedRows()
+		if len(selectedRows) < 2:
+			Utils.MessageOK( self, u'Please select some Rows to Randomize.', u'Insufficient Selected Rows' )
+			return
+			
+		rMin = min( selectedRows )
+		rMax = max( selectedRows ) + 1
+		
+		model = Model.model
+		if len(model.riders) <= rMin:
+			return
+		rMax = min( rMax, len(model.riders) )
+		
+		if not Utils.MessageOKCancel( self, u'Randomize Rows {}-{} ?'.format(rMin+1, rMax), 'Confirm Randomize' ):
+			return
+		
+		toRandomize = model.riders[rMin:rMax]
+		random.shuffle( toRandomize )
+		model.riders[rMin:rMax] = toRandomize
+		self.refresh()
+	
+	def doImportFromExcel( self, event ):
+		ImportStartList( self )
+		
+	def getTitle( self ):
+		title = u'Communique: {}\n{} '.format(
+					self.communiqueNumber.GetValue(),
+					u'Qualifier Seeding' )
+		return title
+	
 	def refresh( self ):
 		riders = Model.model.riders
 		for row, r in enumerate(riders):
-			for col, value in enumerate([str(r.bib), r.first_name, r.last_name, r.team, r.license]):
+			for col, value in enumerate([unicode(r.bib), r.first_name, r.last_name, r.team, r.team_code, r.license]):
 				self.grid.SetCellValue( row, col, value )
 				
 		for row in xrange(len(riders), self.grid.GetNumberRows()):
 			for col in xrange(self.grid.GetNumberCols()):
-				self.grid.SetCellValue( row, col, '' )
+				self.grid.SetCellValue( row, col, u'' )
 				
 		# Fix up the column and row sizes.
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
 		
+		# Sync the communique value.
+		self.communiqueNumber.SetValue( Model.model.communique_number.get(self.phase, u'') )
+		
 		self.Layout()
 		self.Refresh()
 				
 	def commit( self ):
+		self.grid.SaveEditControlValue()
+
 		riders = []
 		for row in xrange(self.grid.GetNumberRows()):
 			fields = {}
-			for col, attr in enumerate(['bib', 'first_name', 'last_name', 'team', 'license']):
+			for col, attr in enumerate(['bib', 'first_name', 'last_name', 'team', 'team_code', 'license']):
 				fields[attr] = self.grid.GetCellValue(row, col).strip()
 				
 			try:
@@ -98,6 +160,12 @@ class Seeding(wx.Panel):
 				riders.append( Model.Rider(**fields) )
 		
 		model = Model.model
+		
+		cn = self.communiqueNumber.GetValue()
+		if cn != model.communique_number.get(self.phase, ''):
+			model.communique_number[self.phase] = self.communiqueNumber.GetValue()
+			model.setChanged()
+		
 		oldRiders = dict( (r.bib, r) for r in model.riders )
 		oldPosition = dict( (r.bib, p) for p, r in enumerate(model.riders) )
 		
@@ -126,7 +194,7 @@ class Seeding(wx.Panel):
 			for r in riders:
 				if r.bib in oldRiders:
 					oldRiders[r.bib].copyDataFields( r )
-			Utils.MessageOK( self, 'Cannot Add or Delete Riders after Competition has Started', 'Cannot Add or Delete Riders' )
+			Utils.MessageOK( self, u'Cannot Add or Delete Riders after Competition has Started', u'Cannot Add or Delete Riders' )
 			self.refresh()
 			return
 		
@@ -134,19 +202,17 @@ class Seeding(wx.Panel):
 			for r in riders:
 				if r.bib in oldRiders:
 					oldRiders[r.bib].copyDataFields( r )
-			Utils.MessageOK( self, 'Cannot Change Bib Numbers after Competition has Started', 'Cannot Change Bib Numbers' )
+			Utils.MessageOK( self, u'Cannot Change Bib Numbers after Competition has Started', u'Cannot Change Bib Numbers' )
 			self.refresh()
 			return
 		
 		# All the bib numbers match - just change the info and update the sequence.
 		model.riders = [oldRiders[r.bib].copyDataFields(r) for r in riders]
+		model.updateSeeding()
 		
 ########################################################################
 
 class SeedingFrame(wx.Frame):
-	""""""
- 
-	#----------------------------------------------------------------------
 	def __init__(self):
 		"""Constructor"""
 		wx.Frame.__init__(self, None, title="Reorder Grid Test", size=(800,600) )

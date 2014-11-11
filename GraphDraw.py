@@ -1,29 +1,41 @@
 import wx
+import Utils
 import Model
 from Competitions import SetDefaultData, DoRandomSimulation
 from Utils import WriteCell
-from Events import FontSize
+from Events import GetFont, GetBoldFont
 import bisect
 import cPickle as pickle
+from collections import defaultdict
 
-class GraphDraw( wx.Panel ):
-	def __init__(self, parent):
-		wx.Panel.__init__(self, parent, wx.ID_ANY)
+class Graph( wx.PyControl ):
+	def __init__( self, parent, id = wx.ID_ANY ):
+		super(Graph, self).__init__( parent, id )
 		
+		self.model = None
 		self.selectedRider = None
 		self.SetDoubleBuffered( True )
 		
 		self.Bind(wx.EVT_PAINT, self.OnPaint)
-		self.Bind(wx.EVT_MOTION, self.OnMotion)
+		self.Bind(wx.EVT_LEFT_DOWN, self.OnLeftDown)
+		self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
 		self.Bind(wx.EVT_SIZE, self.OnSize)
+		self.Bind(wx.EVT_ERASE_BACKGROUND, lambda evt: None)
 		
 		self.rectRiders = []
 		self.colX = []
 
-	def OnMotion( self, evt):
+	def OnSize( self, evt ):
+		self.Refresh()
+	
+	def OnLeftDown( self, evt ):
+		self.selectedRider = None
+		wx.CallAfter( self.Refresh )
+	
+	def OnLeftUp( self, evt ):
 		if not self.colX:
 			return
-			
+		
 		x, y = evt.GetX(), evt.GetY()
 		i = max( 0, bisect.bisect_left(self.colX, x, hi=len(self.colX)-1) - 1 )
 		if self.colX[i] <= x < self.colX[i+1]:
@@ -31,44 +43,62 @@ class GraphDraw( wx.Panel ):
 				if rect.ContainsXY(x, y):
 					if self.selectedRider != rider:
 						self.selectedRider = rider;
-						wx.CallAfter( self.refresh )
+						wx.CallAfter( self.Refresh )
 					return
 				if rect.GetY() > y:
 					return
 	
-	def OnSize(self, evt):
-		wx.CallAfter( self.Refresh )
-	
 	def OnPaint(self, evt):
-		dc = wx.BufferedPaintDC(self)
+		dc = wx.PaintDC(self)
 		self.Draw(dc)
-
-	def refresh( self ):
-		self.Refresh()
+	
+	def Print( self, dc ):
+		self.Draw( dc, True )
+	
+	def Draw( self, dc, toPrinter=False ):
+		width, height = dc.GetSizeTuple()
+		if not width or not height:
+			width, height = self.GetClientSizeTuple()
 		
-	def Draw(self, dc):
-		gc = wx.GraphicsContext.Create( dc )
+		#---------------------------------------------------------------------------
+		# Set up a memory dc to draw into.
+		dcIn = dc
+		#bitmap = wx.EmptyBitmap( width, height, dcIn.GetDepth() )
+		bitmap = wx.EmptyBitmap( width, height, 24 )
+		dcMemory = wx.MemoryDC()
+		dcMemory.SelectObject( bitmap )
+		dc = wx.GCDC( dcMemory )		# Use a graphics context dc to get anti-aliased drawing.
 		
-		width, height = self.GetClientSize()
-		
-		gc.SetBrush( wx.WHITE_BRUSH )
-		gc.DrawRectangle( 0, 0, width, height )
-		gc.SetBrush( wx.BLACK_BRUSH )
+		#---------------------------------------------------------------------------
+		backgroundColour = wx.WHITE
+		dc.SetBackground( wx.WHITE_BRUSH )
+		dc.Clear()
 			
-		model = Model.model
+		model = self.model or Model.model
 		competition = model.competition
 		state = competition.state
 		
+		def getFullName( rider, v ):
+			if not rider:
+				return u''
+			name = rider.bib_full_name
+			if 'rank' in v:
+				name += u' \u2192 {}'.format( v['rank'] )
+			return name
+			
 		def riderName( id ):
 			try:
-				return state.labels[id].full_name
+				return state.labels[id].bib_full_name
 			except KeyError:
-				return ''
-	
-		grid = [[{'title':'Qualifiers'}, {}]]
-		for i in xrange(1, competition.starters+1):
-			grid[0].extend( [{'name':riderName('N%d'%i),'out':'N%d' % i}, {}] )
-			
+				return u''
+		
+		# Set the list of qualifiers.  Double-space the rows.
+		grid = [[{'title':u'Qualifiers'}, {}]]
+		for i in xrange(competition.starters):
+			grid[0].append( {'rider':state.labels.get(u'N{}'.format(i+1),None)} )
+			grid[0].append( {} )
+		
+		# Add the event results.
 		for tournamentCount, tournament in enumerate(competition.tournaments):
 			if tournamentCount == 0:
 				rowStart = 0
@@ -82,9 +112,10 @@ class GraphDraw( wx.Panel ):
 			
 			if tournament.name:
 				grid[col].extend( [{}] * (rowStart - len(grid[col])) )
-				grid[col].extend( [{'title': 'Tournament "%s"' % tournament.name}, {}] )
+				grid[col].extend( [{'title': u'Tournament "%s"' % tournament.name}, {}] )
 				rowStart += 2
 			for s, system in enumerate(tournament.systems):
+			
 				while len(grid) <= col:
 					grid.append( [] )
 					
@@ -93,7 +124,11 @@ class GraphDraw( wx.Panel ):
 				for event in system.events:
 					if 'Repechages' in system.name and event.i == 0:
 						grid[col].extend( [{}] * (len(grid[col-1]) - len(grid[col])) )
-					elif len(event.composition) == 4:	# Offset the 4-ways to another column.
+					elif system.name.startswith('Small'):
+						grid[col].extend( [{}] * (13 if 'XCE' in competition.name or 'Keirin' in competition.name else 8) )
+					elif '5-8' in system.name:
+						grid[col].extend( [{}] * 12 )
+					elif 'XCE' not in competition.name and len(event.composition) == 4: # Offset the 4-ways to another column (if not XCE)
 						rowLast = len(grid[col])
 						if 'Repechages' in system.name:
 							rowLast -= (4+1)
@@ -101,61 +136,87 @@ class GraphDraw( wx.Panel ):
 						while len(grid) <= col:
 							grid.append( [] )
 						grid[col].extend( [{}] * (rowLast - len(grid[col])) )
-						
-					out = [event.winner] + event.others
-					riderOut = dict( (state.labels[o], o) for o in out if state.labels.get(o, state.OpenRider) != state.OpenRider )
-					for c in event.composition:
-						values = {'in':c}
-						try:
-							values['out'] = riderOut[state.labels[c]]
-						except KeyError:
-							pass
-						if len(event.composition) != 4 and 'out' in values:
-							values['winner'] = (values['out'] == event.winner)
+					elif '5-6 Final' in system.name:
+						grid[col].extend( [{}] * 7 )
+					
+					# If the event has happend, sequence by results.
+					# If the event has not happened, sequence by qualifying time.
+					if not event.finishRiderRank:
+						eventComposition = sorted( event.composition, key = lambda c: state.labels.get(c,state.OpenRider).qualifyingTime )
+					else:
+						eventComposition = sorted( event.composition, key = lambda c: event.finishRiderRank.get(state.labels.get(c,state.OpenRider),999) )
+					for p, c in enumerate(eventComposition):
+						rider = state.labels.get(c,state.OpenRider)
+						values = {'rider':rider}
+						if rider in event.finishRiderPlace:
+							values['rank'] = event.finishRiderPlace[rider]
+						if len(event.composition) != 4 and values.get('rank',None) == 1:
+							values['winner'] = True
 							
 						grid[col].append( values )
 					grid[col].append( {} )
 				col += 1
 	
 		results, dnfs, dqs = model.competition.getResults()
-		grid.append( [{'title':'Results'}, {}] )
-		for i, rider in enumerate(results):
-			grid[-1].append( {'in':'R%d' % (i+1),'name':rider.full_name if rider else '', 'rider':rider} )
+		grid.append( [{'title':u'Final Classification'}, {}] )
+		for i, (classification, rider) in enumerate(results):
+			values = {'classification':classification}
+			if rider:
+				values['rider'] = rider
+			grid[-1].append( values )
 			grid[-1].append( {} )
 	
-		outCR = {}
-		inCR = {}
+		if toPrinter:
+			for c, col in enumerate(grid):
+				if c == 0:
+					col.insert( 0, {'title':model.competition_name} )
+				elif c == 1:
+					col.insert( 0, {'title':model.date.strftime('%Y/%m/%d')} )
+				else:
+					col.insert( 0, {} )
+				col.insert( 1, {} )
+	
+		inCR = defaultdict( list )
 		for c, col in enumerate(grid):
 			for r, v in enumerate(col):
-				if 'out' in v:
-					outCR[v['out']] = (c, r)
-				if 'in' in v:
-					inCR[v['in']] = (c, r)
+				if 'rider' in v and v['rider'].bib:
+					inCR[v['rider']].append( (c, r) )
+					
+		def getToCR( cFrom, rider ):
+			try:
+				for c, r in inCR[rider]:
+					if c > cFrom:
+						return c, r
+			except KeyError:
+				pass
+				
+			return None, None
 	
-		fontSize = 0.4 * height / model.competition.starters
+		# Binary search for the right font size.
+		fontSize = 0.4 * height / float(model.competition.starters)
 		fontSizeMin, fontSizeMax = 0.0, fontSize * 3
-		while 1:
+		for ff in xrange(10):
 			fontSize = int((fontSizeMax + fontSizeMin) / 2.0)
 			
-			font = gc.CreateFont( wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL) )
-			boldFont = gc.CreateFont( wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_BOLD) )
-			gc.SetFont( font )
-			textWidth, textHeight, textDescent, textExternalLeading = gc.GetFullTextExtent( 'My What a Nice String!' )
+			font = wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL)
+			boldFont = wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_BOLD)
+			dc.SetFont( font )
+			textHeight = dc.GetTextExtent( u'My What a Nice String!' )[1]
 			rowHeight = textHeight * 1.15
 			
 			colWidths = [0] * len(grid)
 			for c, col in enumerate(grid):
 				for v in col:
 					if 'title' in v:
-						gc.SetFont( boldFont )
-						colWidths[c] = max( colWidths[c], gc.GetFullTextExtent(v['title'])[0] )
-						gc.SetFont( font )
+						dc.SetFont( boldFont )
+						colWidths[c] = max( colWidths[c], dc.GetFullTextExtent(v['title'])[0] )
+						dc.SetFont( font )
 					elif 'name' in v:
-						colWidths[c] = max( colWidths[c], gc.GetFullTextExtent(v['name'])[0] )
-					if 'in' in v and state.labels.get( v['in'], None):
-						colWidths[c] = max( colWidths[c], gc.GetFullTextExtent(riderName(v['in']))[0] )
+						colWidths[c] = max( colWidths[c], dc.GetFullTextExtent(v['name'] + '00. ')[0] )
+					if v.get('rider',None):
+						colWidths[c] = max( colWidths[c], dc.GetFullTextExtent(v['rider'].bib_full_name + '00. ')[0] )
 			
-			border = 8
+			border = width / 15 if toPrinter else 8
 			xLeft = border
 			yTop = border
 			colX = [xLeft]
@@ -164,44 +225,59 @@ class GraphDraw( wx.Panel ):
 				colX.append( colX[-1] + w + colSpace )
 
 			rows = max( len(col) for col in grid )
-			if colX[len(grid)] - colSpace > width - border or rows * rowHeight > height:
+			xMax, yMax = colX[len(grid)] - colSpace, rows * rowHeight
+			if xMax > width - border or yMax > height - border:
 				fontSizeMax = fontSize
 			else:
 				if fontSizeMax - fontSizeMin < 1.001:
 					break
 				fontSizeMin = fontSize
 		
-		whiteFont = gc.CreateFont( wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL), wx.WHITE )
-		greenPen = gc.CreatePen( wx.Pen(wx.Colour(0,200,0)) )
-		greenPenThick = gc.CreatePen( wx.Pen(wx.Colour(0,200,0), 4) )
-		redPen = gc.CreatePen( wx.RED_PEN )
-		redPenThick = gc.CreatePen( wx.Pen(wx.Colour(255,0,0), 4) )
-		blackPen = gc.CreatePen( wx.BLACK_PEN )
-		bluePen = gc.CreatePen( wx.Pen(wx.Colour(0,0,200)) )
-		whitePen = gc.CreatePen( wx.WHITE_PEN )
-		blackBrush = gc.CreateBrush( wx.BLACK_BRUSH )
-		whiteBrush = gc.CreateBrush( wx.WHITE_BRUSH )
+		thinLine = max( 1, int(fontSize / 10.0) )
+		thickLine = max( 4, int(fontSize / 3.0) )
 		
-		gc.SetBrush( whiteBrush )
+		whiteFont = wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL)
+		greenPen = wx.Pen(wx.Colour(0,200,0), thinLine)
+		greenPenThick = wx.Pen(wx.Colour(0,200,0), thickLine)
+		redPen = wx.Pen( wx.RED, thinLine )
+		redPenThick = wx.Pen(wx.Colour(255,0,0), thickLine)
+		blackPen = wx.Pen(wx.BLACK, thinLine)
+		bluePen = wx.Pen(wx.Colour(0,0,200), thinLine)
+		whitePen = wx.Pen( wx.WHITE, thinLine )
+		blackBrush = wx.BLACK_BRUSH
+		whiteBrush = wx.WHITE_BRUSH
 		
-		def addSCurve( path, x1, y1, x2, y2 ):
-			controlRatio = 0.50
+		dc.SetBrush( whiteBrush )
+		
+		topSpace = 0
+		if toPrinter:
+			titleFontSize = border / 4
+			titleFont = wx.FontFromPixelSize(wx.Size(0,titleFontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL)
+			dc.SetFont( titleFont )
+			model = Model.model
+			cNum = model.communique_number.get(GraphDraw.phase, '')
+			dc.DrawText( u'Communiqu\u00E9: {}  Sprint Summary for {}: {}'.format(cNum, model.competition_name, model.category, model.category),
+				border, border - 2*titleFontSize )
+			
+		dc.SetFont( font )
+		
+		controlRatio = 0.78
+		def drawSCurve( x1, y1, x2, y2 ):
 			cx1, cy1 = x2 - (x2 - x1)*controlRatio, y1
 			cx2, cy2 = x1 + (x2 - x1)*controlRatio, y2
-			path.AddCurveToPoint( cx1, cy1, cx2, cy2, x2, y2 )
+			dc.DrawSpline( [wx.Point(x1,y1), wx.Point(cx1,cy1), wx.Point(cx2,cy2), wx.Point(x2,y2)] )
 		
 		# Draw the connections.
 		for c, col in enumerate(grid):
 			for r, v in enumerate(col):
-				if 'out' not in v or not riderName(v['out']):
+				if 'rider' not in v:
 					continue
-				rider = state.labels[v['out']]
-				x1 = colX[c] + gc.GetFullTextExtent(riderName(v['out']))[0]
+				rider = v['rider']
+				x1 = colX[c] + dc.GetFullTextExtent(getFullName(rider, v))[0]
 				y1 = yTop + r * rowHeight + rowHeight / 2
 				
-				try:
-					cTo, rTo = inCR[v['out']]
-				except KeyError:
+				cTo, rTo = getToCR(c, rider)
+				if cTo is None:
 					continue
 				
 				x2 = colX[cTo]
@@ -209,29 +285,27 @@ class GraphDraw( wx.Panel ):
 				
 				if 'winner' in v:
 					if rider == self.selectedRider:
-						gc.SetPen( greenPenThick if v['winner'] else redPenThick )
+						dc.SetPen( greenPenThick if v['winner'] else redPenThick )
 					else:
-						gc.SetPen( greenPen if v['winner'] else redPen )
+						dc.SetPen( greenPen if v['winner'] else redPen )
 				else:
-					gc.SetPen( greenPenThick if rider == self.selectedRider else greenPen )
+					dc.SetPen( greenPenThick if rider == self.selectedRider else greenPen )
 				
-				path = gc.CreatePath()
-				path.MoveToPoint( x1, y1 )
-				addSCurve( path, x1, y1, x2, y2 )
-				gc.StrokePath( path )
+				drawSCurve( x1, y1, x2, y2 )
 			
 		# Create a map of the last event for all riders.
 		riderLastEvent = {}
 		for cFrom in xrange(len(grid)-2, -1, -1):
 			for rFrom, vFrom in enumerate(grid[cFrom]):
 				try:
-					rider = state.labels[vFrom['out']]
+					rider = state.labels[vFrom['rider']]
 				except KeyError:
 					continue
 				if rider not in riderLastEvent:
 					riderLastEvent[rider] = (cFrom, rFrom)
 						
 		def getIsBlocked( cFrom, rFrom, cTo, rTo ):
+			''' Check if there is an entry in the rectangle between cFrom, rFrom and cTo, rTo. '''
 			for c in xrange(cFrom+1, cTo):
 				for r in xrange( min(rFrom, rTo), min(max(rFrom, rTo), len(grid[c])) ):
 					if grid[c][r]:
@@ -243,61 +317,68 @@ class GraphDraw( wx.Panel ):
 		cTo = len(grid) - 1
 		for rTo, v in enumerate(grid[-1]):
 			try:
-				id = v['in']
+				pos = v['classification']
 			except KeyError:
 				continue
-			rider = results[int(id[1:]) - 1]
+			rider = v.get('rider', None)
 			if rider not in riderLastEvent:
 				continue
 				
 			cFrom, rFrom = riderLastEvent[rider]
 			
-			gc.SetPen( greenPenThick if rider == self.selectedRider else greenPen )
+			dc.SetPen( greenPenThick if rider == self.selectedRider else greenPen )
 				
-			x1 = colX[cFrom] + gc.GetFullTextExtent(rider.full_name)[0]
+			x1 = colX[cFrom] + dc.GetFullTextExtent(getFullName(rider,v))[0]
 			y1 = yTop + rFrom * rowHeight + rowHeight / 2
 			x2 = colX[cTo]
 			y2 = yTop + rTo * rowHeight + rowHeight / 2
-			path = gc.CreatePath()
-			path.MoveToPoint( x1, y1 )
 			
 			if competition.starters == 18 or not getIsBlocked(cFrom, rFrom, cTo, rTo):
-				addSCurve( path, x1, y1, x2, y2 )
+				drawSCurve( x1, y1, x2, y2 )
 			else:
 				maxRowBetween = max( len(grid[c]) for c in xrange(cFrom+1, cTo) )
 				xa = colX[cFrom+1]
 				rAvoid = maxRowBetween + colAvoidCount[cFrom]
 				colAvoidCount[cFrom] += 2
 				ya = yTop + rAvoid * rowHeight
-				addSCurve( path, x1, y1, xa, ya )
+				drawSCurve( x1, y1, xa, ya )
 				for cNext in xrange(cFrom+2, cTo+1):
 					if not getIsBlocked(cNext, rAvoid, cTo, rTo):
 						break
 				xb = colX[min(cNext+1, len(grid)-1)] - colSpace
 				yb = ya
-				path.AddLineToPoint( xb, yb )
-				addSCurve( path, xb, yb, x2, y2 )
-				
-			gc.StrokePath( path )
+				dc.DrawLine( xa, ya, xb, yb )
+				drawSCurve( xb, yb, x2, y2 )
 		
-		def drawName( name, x, y, selected ):
+		def drawName( name, x, y, selected, pos = -1 ):
 			if not name:
-				return
+				return u''
+			if pos > 0:
+				name = u'{:02d}. {}'.format( pos, name )
+			dc.SetFont( whiteFont )
+			xborder = fontSize / 2
+			yborder = fontSize / 10
+			width, height = dc.GetFullTextExtent(name)[:2]
 			if selected:
-				gc.SetFont( whiteFont )
-				xborder = fontSize / 2
-				yborder = fontSize / 10
-				width, height = gc.GetFullTextExtent(name)[:2]
-				gc.SetBrush( blackBrush )
-				gc.SetPen( blackPen )
-				gc.DrawRoundedRectangle( x-xborder, y-yborder, width + xborder*2, height + yborder*2, (height + yborder*2) / 4 )
-				gc.DrawText( name, x, y, blackBrush )
-				gc.SetFont( font )
+				dc.SetBrush( blackBrush )
+				dc.SetPen( blackPen )
+				dc.DrawRoundedRectangle( x-xborder, y-yborder, width + xborder*2, height + yborder*2, (height + yborder*2) / 4 )
+				dc.SetTextForeground( wx.WHITE )
+				if pos > 0 and name.startswith(u'0'):
+					name = name[1:]
+					x += dc.GetFullTextExtent(u'0')[0]
+				dc.DrawText( name, x, y )
+				dc.SetTextForeground( wx.BLACK )
+				dc.SetFont( font )
 			else:
-				gc.DrawText( name, x, y )
-		
-		riderNames = dict( (state.labels[n].full_name, state.labels[n])
-			for n in ['N%d' % i for i in xrange(1, competition.starters+1)] if n in state.labels )
+				if pos > 0 and name.startswith(u'0'):
+					name = name[1:]
+					x += dc.GetFullTextExtent(u'0')[0]
+				dc.SetBrush( wx.WHITE_BRUSH )
+				dc.SetPen( wx.TRANSPARENT_PEN )
+				dc.DrawRoundedRectangle( x-xborder, y-yborder, width + xborder*2, height + yborder*2, (height + yborder*2) / 4 )
+				dc.DrawText( name, x, y )
+			return name
 		
 		# Draw the node names.
 		self.rectRiders = []
@@ -307,47 +388,131 @@ class GraphDraw( wx.Panel ):
 				x = colX[c]
 				y = yTop + r * rowHeight
 				if 'title' in v:
-					gc.SetFont( boldFont )
-					gc.DrawText( v['title'], x, y )
-					gc.SetFont( font )
+					dc.SetFont( boldFont )
+					dc.DrawText( v['title'], x, y )
+					dc.SetFont( font )
 				elif 'name' in v:
-					rider = v.get('rider', None) or riderNames.get(v['name'], None)
+					try:
+						pos = v['classification']
+					except KeyError:
+						pos = -1
+					rider = v.get('rider', None)
 					if rider:
-						colRects.append( (wx.Rect(x, y, gc.GetFullTextExtent(rider.full_name)[0], rowHeight), rider) )
-						drawName( rider.full_name, x, y, rider == self.selectedRider )
-				elif 'in' in v and riderName(v['in']):
-					rider = state.labels.get(v['in'], None)
+						name = drawName( getFullName(rider, v), x, y, rider == self.selectedRider, pos )
+						colRects.append( (wx.Rect(x, y, dc.GetFullTextExtent(name)[0], rowHeight), rider) )
+				elif 'rider' in v:
+					rider = v['rider']
 					if rider:
-						drawName( rider.full_name, x, y, rider == self.selectedRider )
-						colRects.append( (wx.Rect(x, y, gc.GetFullTextExtent(rider.full_name)[0], rowHeight), rider) )
-				elif 'out' in v and riderName(v['out']):
-					rider = state.labels.get(v['out'], None)
-					if rider:
-						colRectsappend( (wx.Rect(x, y, gc.GetFullTextExtent(rider.full_name)[0], rowHeight), rider) )
+						name = getFullName( rider, v )
+						if 'classification' in v:
+							pos = unicode(v['classification'])
+							if pos.isdigit():
+								name = u'{}.  {}'.format(pos, name)
+							else:
+								name = u'{}  {}'.format(pos, name)
+						drawName( name, x, y, rider == self.selectedRider )
+						colRects.append( (wx.Rect(x, y, dc.GetFullTextExtent(name)[0], rowHeight), rider) )
 			self.rectRiders.append( colRects )
 		self.colX = colX
-					
+		
+		# Copy the bitmap into the original dc.
+		dcIn.Blit( 0, 0, width, height, dcMemory, 0, 0 )
+		dcMemory.SelectObject( wx.NullBitmap )
+
+	def getImage( self, toPrinter = False ):
+		bitmap = wx.EmptyBitmap( 1366, 768 )
+		mdc = wx.MemoryDC( bitmap )
+		self.Draw( mdc, toPrinter )
+		image = bitmap.ConvertToImage()
+		mdc.SelectObject( wx.NullBitmap )
+		return image
+
+class GraphDraw( wx.PyPanel ):
+	phase = 'Competition Summary'
+
+	def __init__(self, parent):
+		wx.Panel.__init__(self, parent, wx.ID_ANY)
+		
+		vs = wx.BoxSizer( wx.VERTICAL )
+		
+		self.title = wx.StaticText( self, wx.ID_ANY, '' )
+		self.title.SetFont( GetBoldFont() )
+		
+		self.communiqueLabel = wx.StaticText( self, wx.ID_ANY, u'Communiqu\u00E9:' )
+		self.communiqueLabel.SetFont( GetFont() )
+		self.communiqueNumber = wx.TextCtrl( self, wx.ID_ANY, u'', size=(64,-1) )
+		self.communiqueNumber.SetFont( GetFont() )
+		
+		hs = wx.BoxSizer(wx.HORIZONTAL)
+		hs.Add( self.title, 0, flag=wx.ALIGN_CENTRE_VERTICAL|wx.ALL, border = 4 )
+		hs.Add( self.communiqueLabel, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
+		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border = 4 )
+		
+		vs.Add( hs, 0, flag=wx.ALL, border = 6 )
+		
+		self.graph = Graph( self )
+		vs.Add( self.graph, 1, flag=wx.ALL|wx.EXPAND, border = 6 )
+		
+		self.SetSizer( vs )
+
+	def refresh( self ):
+		model = Model.model
+		self.title.SetLabel( u'{}:{} - {} - Format: {}    '.format(
+								model.competition_name,
+								model.category,
+								model.date.strftime('%Y-%m-%d'),
+								model.competition.name,
+							) )
+		self.communiqueNumber.SetValue( model.communique_number.get(self.phase, u'') )
+		self.GetSizer().Layout()
+		self.Refresh()
+		
+	def getTitle( self ):
+		title = u'Communiqu\u00E9: {}\n{}'.format(
+					self.communiqueNumber.GetValue(),
+					self.phase )
+		return title
+		
+	def getImage( self ):
+		return self.graph.getImage()
+	
+	def commit( self ):
+		model = Model.model
+		cn = self.communiqueNumber.GetValue()
+		if cn != model.communique_number.get(self.phase, u''):
+			model.communique_number[self.phase] = self.communiqueNumber.GetValue()
+			model.setChanged()
 		
 #----------------------------------------------------------------------
 
 class GraphDrawFrame(wx.Frame):
-	""""""
- 
-	#----------------------------------------------------------------------
 	def __init__(self):
-		"""Constructor"""
-		wx.Frame.__init__(self, None, title="Graph Test", size=(1000,800) )
-		panel = GraphDraw(self)
-		panel.refresh()
+		wx.Frame.__init__(self, None, title=u"Graph Test", size=(1000,800) )
+		self.panel = GraphDraw( self )
+		self.panel.refresh()
 		self.Show()
  
+	def getImage( self ):
+		return self.panel.getImage()
+		
 #----------------------------------------------------------------------
 if __name__ == "__main__":
 	app = wx.App(False)
-	#SetDefaultData()
+	#Model.model = SetDefaultData()
 	#with open(r'Races\TestFinished.smr', 'rb') as fp:
 	#	Model.model = pickle.load( fp )
-	SetDefaultData()
+	#Model.model = SetDefaultData('XCE 32')
+	Model.model = SetDefaultData('World Cup')
+	#Model.model = SetDefaultData('XCE Fewer than 18')
+	#Model.model = SetDefaultData('XCE 36')
+	#Model.model = SetDefaultData('Four Cross 64')
+	#Model.model = SetDefaultData('Four Cross 32')
+	#Model.model = SetDefaultData('Four Cross 16')
+	#Model.model = SetDefaultData('XCE Fewer than 24')
+	#Model.model = SetDefaultData('Keirin 21')
+	#Model.model = SetDefaultData('Keirin 22-28')
+	#Model.model = SetDefaultData('Keirin 29-42')
+	#Model.model = SetDefaultData('Keirin 12-14')
 	DoRandomSimulation()
 	frame = GraphDrawFrame()
 	app.MainLoop()

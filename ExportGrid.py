@@ -14,15 +14,15 @@ from contextlib import contextmanager
 
 @contextmanager
 def tag( buf, name, attrs = {} ):
-	if isinstance(attrs, str) and attrs:
+	if isinstance(attrs, basestring) and attrs:
 		attrs = { 'class': attrs }
-	buf.write( '<%s>' % ' '.join(
-			[name] + ['%s="%s"' % (attr, value) for attr, value in attrs.iteritems()]
-		) )
+	buf.write( u'<{}>'.format( u' '.join(
+			[name] + [u'{}="{}"'.format(attr, value) for attr, value in attrs.iteritems()]
+		) ) )
 	yield
-	buf.write( '</%s>\n' % name )
+	buf.write( u'</{}>\n'.format(name) )
 
-brandText = 'Powered by SprintMgr (sites.google.com/site/crossmgrsoftware)'
+brandText = u'Powered by SprintMgr (sites.google.com/site/crossmgrsoftware)'
 
 def ImageToPil( image ):
 	"""Convert wx.Image to PIL Image."""
@@ -44,6 +44,51 @@ def ImageToPil( image ):
 		pil = Image.merge('RGB', (redImage, greenImage, blueImage))
 	return pil
 
+def getHeaderFName():
+	''' Get the header bitmap if specified and exists, or use a default.  '''
+	try:
+		graphicFName = Utils.getMainWin().getGraphicFName()
+		with open(graphicFName, 'rb') as f:
+			pass
+		return graphicFName
+	except:
+		return os.path.join(Utils.getImageFolder(), 'SprintMgr.png')
+
+def getHeaderBitmap():
+	''' Get the header bitmap if specified, or use a default.  '''
+	if Utils.getMainWin():
+		graphicFName = Utils.getMainWin().getGraphicFName()
+		extension = os.path.splitext( graphicFName )[1].lower()
+		bitmapType = {
+			'.gif': wx.BITMAP_TYPE_GIF,
+			'.png': wx.BITMAP_TYPE_PNG,
+			'.jpg': wx.BITMAP_TYPE_JPEG,
+			'.jpeg':wx.BITMAP_TYPE_JPEG }.get( extension, wx.BITMAP_TYPE_ANY )
+		try:
+			return wx.Bitmap( graphicFName, bitmapType )
+		except Exception as e:
+			pass
+	
+	return wx.Bitmap( os.path.join(Utils.getImageFolder(), 'SprintMgr.png'), wx.BITMAP_TYPE_PNG )
+
+def writeHtmlHeader( buf, title ):
+	with tag(buf, 'table', {'class': 'TitleTable'} ):
+		with tag(buf, 'tr'):
+			with tag(buf, 'td', dict(valign='top')):
+				data = base64.b64encode(open(getHeaderFName(),'rb').read())
+				buf.write( '<img id="idImgHeader" src="data:image/png;base64,%s" />' % data )
+			with tag(buf, 'td'):
+				buf.write( '&nbsp;&nbsp;&nbsp;&nbsp;' )
+			with tag(buf, 'td'):
+				with tag(buf, 'span', {'id': 'idRaceName'}):
+					buf.write( cgi.escape(title).replace('\n', '<br/>\n') )
+				if Model.model.organizer:
+					with tag(buf, 'br'):
+						pass
+					with tag(buf, 'span', {'id': 'idOrganizer'}):
+						buf.write( 'by ' )
+						buf.write( cgi.escape(Model.model.organizer) )
+
 class ExportGrid( object ):
 	PDFLineFactor = 1.10
 
@@ -51,7 +96,17 @@ class ExportGrid( object ):
 		self.title = title
 		self.grid = grid
 		self.colnames = [grid.GetColLabelValue(c) for c in xrange(grid.GetNumberCols())]
-		self.data = [ [grid.GetCellValue(r, c) for r in xrange(grid.GetNumberRows())] for c in xrange(grid.GetNumberCols()) ]
+		self.data = [ [grid.GetCellValue(r, c) for r in xrange(grid.GetNumberRows())] for c in xrange(len(self.colnames)) ]
+		
+		# Trim all empty rows.
+		self.numRows = 0
+		for col in self.data:
+			for iRow, v in enumerate(col):
+				if v.strip() and iRow >= self.numRows:
+					self.numRows = iRow + 1
+		
+		for col in self.data:
+			del col[self.numRows:]
 		
 		self.fontName = 'Helvetica'
 		self.fontSize = 16
@@ -66,21 +121,14 @@ class ExportGrid( object ):
 			else:
 				self.leftJustifyCols[c] = True
 	
-	def getHeaderGraphic( self ):
-		return os.path.join(Utils.getImageFolder(), 'SprintMgr.png')
-		
-	def getHeaderBitmap( self ):
-		bitmap = wx.Bitmap( self.getHeaderGraphic(), wx.BITMAP_TYPE_PNG )
-		return bitmap
-
 	def _getFont( self, pixelSize = 28, bold = False ):
 		return wx.FontFromPixelSize( (0,pixelSize), wx.FONTFAMILY_SWISS, wx.NORMAL,
-									 wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL, False, 'Ariel' )
+									 wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL, False )
 	
 	def _getColSizeTuple( self, dc, font, col ):
 		wSpace, hSpace, lh = dc.GetMultiLineTextExtent( '    ', font )
 		extents = [ dc.GetMultiLineTextExtent(self.colnames[col], font) ]
-		extents.extend( dc.GetMultiLineTextExtent(str(v), font) for v in self.data[col] )
+		extents.extend( dc.GetMultiLineTextExtent(unicode(v), font) for v in self.data[col] )
 		return max( e[0] for e in extents ), sum( e[1] for e in extents ) + hSpace/4
 	
 	def _getDataSizeTuple( self, dc, font ):
@@ -141,10 +189,10 @@ class ExportGrid( object ):
 		qrWidth = 0
 		
 		# Draw the graphic.
-		bitmap = self.getHeaderBitmap()
+		bitmap = getHeaderBitmap()
 		bmWidth, bmHeight = bitmap.GetWidth(), bitmap.GetHeight()
-		graphicHeight = heightPix * 0.12
-		graphicWidth = float(bmWidth) / float(bmHeight) * graphicHeight
+		graphicHeight = int(heightPix * 0.12)
+		graphicWidth = int(float(bmWidth) / float(bmHeight) * graphicHeight)
 		graphicBorder = int(graphicWidth * 0.15)
 
 		# Rescale the graphic to the correct size.
@@ -169,12 +217,12 @@ class ExportGrid( object ):
 		# Draw the table.
 		font = self._getFontToFit( widthFieldPix, heightFieldPix, lambda font: self._getDataSizeTuple(dc, font) )
 		dc.SetFont( font )
-		wSpace, hSpace, textHeight = dc.GetMultiLineTextExtent( '    ', font )
+		wSpace, hSpace, textHeight = dc.GetMultiLineTextExtent( u'    ', font )
 		
 		# Get the max height per row.
-		rowHeight = [0] * (self.grid.GetNumberRows() + 1)
-		for r in xrange(self.grid.GetNumberRows()):
-			rowHeight[r] = max( dc.GetMultiLineTextExtent(self.grid.GetCellValue(r, c), font)[1] for c in xrange(self.grid.GetNumberCols()))
+		rowHeight = [0] * (self.numRows + 1)
+		for r in xrange(self.numRows):
+			rowHeight[r] = max( dc.GetMultiLineTextExtent(self.grid.GetCellValue(r, c), font)[1] for c in xrange(len(self.colnames)))
 		
 		yPixTop = yPix
 		yPixMax = yPix
@@ -183,9 +231,9 @@ class ExportGrid( object ):
 			yPix = yPixTop
 			w, h, lh = dc.GetMultiLineTextExtent( c, font )
 			if col in self.leftJustifyCols:
-				self._drawMultiLineText( dc, str(c), xPix, yPix )					# left justify
+				self._drawMultiLineText( dc, unicode(c), xPix, yPix )					# left justify
 			else:
-				self._drawMultiLineText( dc, str(c), xPix + colWidth - w, yPix )	# right justify
+				self._drawMultiLineText( dc, unicode(c), xPix + colWidth - w, yPix )	# right justify
 			yPix += h + hSpace/4
 			if col == 0:
 				yLine = yPix - hSpace/8
@@ -195,7 +243,7 @@ class ExportGrid( object ):
 					dc.DrawLine( borderPix, yLine, widthPix - borderPix, yLine )
 					
 			for r, v in enumerate(self.data[col]):
-				vStr = str(v)
+				vStr = unicode(v)
 				if vStr:
 					w, h, lh = dc.GetMultiLineTextExtent( vStr, font )
 					if col in self.leftJustifyCols:
@@ -228,22 +276,32 @@ class ExportGrid( object ):
 		sheetFit = FitSheetWrapper( sheet )
 		
 		# Write the colnames and data.
+		headerStyleLeft = xlwt.XFStyle()
+		headerStyleLeft.borders.bottom = xlwt.Borders.MEDIUM
+		headerStyleLeft.font.bold = True
+		headerStyleLeft.alignment.horz = xlwt.Alignment.HORZ_LEFT
+		headerStyleLeft.alignment.wrap = xlwt.Alignment.WRAP_AT_RIGHT
+
+		headerStyleRight = xlwt.XFStyle()
+		headerStyleRight.borders.bottom = xlwt.Borders.MEDIUM
+		headerStyleRight.font.bold = True
+		headerStyleRight.alignment.horz = xlwt.Alignment.HORZ_RIGHT
+		headerStyleRight.alignment.wrap = xlwt.Alignment.WRAP_AT_RIGHT
+
+		styleLeft = xlwt.XFStyle()
+		styleLeft.alignment.horz = xlwt.Alignment.HORZ_LEFT
+		styleLeft.alignment.wrap = True
+		styleLeft.alignment.vert = xlwt.Alignment.VERT_TOP
+			
+		styleRight = xlwt.XFStyle()
+		styleRight.alignment.horz = xlwt.Alignment.HORZ_RIGHT
+		styleRight.alignment.wrap = True
+		styleRight.alignment.vert = xlwt.Alignment.VERT_TOP
+			
 		rowMax = 0
 		for col, c in enumerate(self.colnames):
-			headerStyle = xlwt.XFStyle()
-			headerStyle.borders.bottom = xlwt.Borders.MEDIUM
-			headerStyle.font.bold = True
-			headerStyle.alignment.horz = xlwt.Alignment.HORZ_LEFT if col in self.leftJustifyCols \
-																	else xlwt.Alignment.HORZ_RIGHT
-			headerStyle.alignment.wrap = xlwt.Alignment.WRAP_AT_RIGHT
-			
-			style = xlwt.XFStyle()
-			style.alignment.horz = xlwt.Alignment.HORZ_LEFT if col in self.leftJustifyCols \
-																	else xlwt.Alignment.HORZ_RIGHT
-			style.alignment.wrap = True
-			style.alignment.vert = xlwt.Alignment.VERT_TOP
-			
-			sheetFit.write( rowTop, col, c, headerStyle, bold=True )
+			sheetFit.write( rowTop, col, c, headerStyleLeft if col in self.leftJustifyCols else headerStyleRight, bold=True )
+			style = styleLeft if col in self.leftJustifyCols else styleRight
 			for row, v in enumerate(self.data[col]):
 				rowCur = rowTop + 1 + row
 				if rowCur > rowMax:
@@ -257,23 +315,7 @@ class ExportGrid( object ):
 		
 	def toHtml( self, buf ):
 		''' Write the contents to the buffer in HTML format. '''
-		
-		with tag(buf, 'table', {'class': 'TitleTable'} ):
-			with tag(buf, 'tr'):
-				with tag(buf, 'td', dict(valign='top')):
-					data = base64.b64encode(open(self.getHeaderGraphic(),'rb').read())
-					buf.write( '<img id="idImgHeader" src="data:image/png;base64,%s" />' % data )
-				with tag(buf, 'td'):
-					buf.write( '&nbsp;&nbsp;&nbsp;&nbsp;' )
-				with tag(buf, 'td'):
-					with tag(buf, 'span', {'id': 'idRaceName'}):
-						buf.write( cgi.escape(self.title).replace('\n', '<br/>\n') )
-					if Model.model.organizer:
-						with tag(buf, 'br'):
-							pass
-						with tag(buf, 'span', {'id': 'idOrganizer'}):
-							buf.write( 'by ' )
-							buf.write( cgi.escape(Model.model.organizer) )
+		writeHtmlHeader( buf, self.title )
 		
 		with tag(buf, 'table', {'class': 'results'} ):
 			with tag(buf, 'thead'):
@@ -284,7 +326,7 @@ class ExportGrid( object ):
 			with tag(buf, 'tbody'):
 				for row in xrange(max(len(d) for d in self.data)):
 					with tag(buf, 'tr'):
-						for col in xrange(self.grid.GetNumberCols()):
+						for col in xrange(len(self.colnames)):
 							with tag(buf, 'td', {'class':'rAlign'} if col not in self.leftJustifyCols else {}):
 								try:
 									buf.write( cgi.escape(self.data[col][row]).replace('\n', '<br/>\n') )

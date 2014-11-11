@@ -3,11 +3,12 @@ import wx.grid as gridlib
 
 import os
 import sys
-import Model
 import Utils
+import Model
 from ReorderableGrid import ReorderableGrid, GridCellMultiLineStringRenderer
 from roundbutton import RoundButton
 from Competitions import SetDefaultData
+from HighPrecisionTimeEditor import HighPrecisionTimeEditor
 
 RoundButtonSize = 72
 
@@ -18,10 +19,25 @@ RoundButtonCancelColor = wx.Colour(100, 0, 0)
 isOK, isSelect, isCancel, isRestart = range(4)
 buttonColors = [RoundButtonColor, RoundButtonColor, RoundButtonCancelColor, RoundButtonRestartColor]
 
-FontSize = 24
+FontSize = 16
+font = None
+def GetFont():
+	global font
+	if font is None:
+		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+	return font
+
+boldFont = None
+def GetBoldFont():
+	global boldFont
+	if boldFont is None:
+		boldFont = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_BOLD )
+	return boldFont
 
 ActiveBackgroundColour = wx.Colour( 170, 255, 170 )
 InactiveBackgroundColour = wx.Colour( 200, 200, 200 )
+
+CacheDNSs = set()	# Cashe for DNSs set in the Event Start screen, but not yet committed in the Finish screen.
 
 def MakeRoundButton( parent, label, bType = 0 ):
 	btn = RoundButton( parent, wx.ID_ANY, label, size=(RoundButtonSize, RoundButtonSize) )
@@ -35,15 +51,21 @@ def EnableRoundButton( btn, enable, bType = 0 ):
 		btn.SetForegroundColour( buttonColors[bType] )
 	else:
 		btn.SetForegroundColour( InactiveBackgroundColour )
-		
 	btn.Enable( enable )
 	return btn
 	
 def visitComponentTree( parent ):
 	yield parent
-	if hasattr(parent,"Children"):
+	try:
 		for child in parent.Children:
 			yield visitComponentTree(child)
+	except AttributError:
+		pass
+
+#------------------------------------------------------------------------------------
+
+def EnableBar( parent ):
+	return wx.Panel( parent, style=wx.BORDER_NONE, size=(32,0) )
 
 #------------------------------------------------------------------------------------
 
@@ -52,7 +74,7 @@ class RestartDialog( wx.Dialog ):
 		wx.Dialog.__init__( self, parent, id, "Restart",
 						style=wx.DEFAULT_DIALOG_STYLE|wx.THICK_FRAME|wx.TAB_TRAVERSAL )
 						
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 		
 		sizer = wx.BoxSizer( wx.VERTICAL )
 		
@@ -61,7 +83,7 @@ class RestartDialog( wx.Dialog ):
 		bitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'refresh.png'), wx.BITMAP_TYPE_PNG )
 		restartBitmap = wx.StaticBitmap( self, wx.ID_ANY, bitmap )
 		
-		title = wx.StaticText( self, wx.ID_ANY, 'Restart Status Changes' )
+		title = wx.StaticText( self, label='Restart Status Changes' )
 		title.SetFont( font )
 		self.titleText = title
 		
@@ -101,7 +123,7 @@ class RestartDialog( wx.Dialog ):
 		start = event.starts[-1]
 		state = event.competition.state
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 		
 		startPositions = start.startPositions
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(startPositions) )
@@ -119,19 +141,17 @@ class RestartDialog( wx.Dialog ):
 			elif self.headerNames[col].startswith('Status'):
 				if len(start.getRemainingComposition()) > 2:
 					choices = ['Rel', 'DQ', 'DNF', '']
-					self.titleText.SetLabel( 'Restart Status Change' )
+					self.titleText.SetLabel( u'Restart Status Change' )
 				else:
 					choices = ['Inside', '']
-					self.titleText.SetLabel( 'Restart Position Change' )
+					self.titleText.SetLabel( u'Restart Position Change' )
 				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = choices) )
 			self.grid.SetColAttr( col, attr )
 		
 		for row, p in enumerate(startPositions):
 			rider = state.labels[p]
-			self.grid.SetCellValue( row, 0, str(rider.bib) )
-			self.grid.SetCellValue( row, 1, rider.full_name )
-			self.grid.SetCellValue( row, 2, rider.team )
-			self.grid.SetCellValue( row, 3, '' )
+			for col, v in enumerate([rider.bib, rider.full_name, rider.team, '']):
+				self.grid.SetCellValue( row, col, unicode(v) )
 		
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
@@ -141,7 +161,6 @@ class RestartDialog( wx.Dialog ):
 				
 		self.CentreOnParent(wx.BOTH)
 		self.SetFocus()
-
 		
 	def commit( self ):
 		places = []
@@ -167,7 +186,6 @@ class RestartDialog( wx.Dialog ):
 
 #------------------------------------------------------------------------------------
 
-			
 class EnablePanel(wx.Panel):
 	def __init__(self, parent):
 		wx.Panel.__init__(self, parent)
@@ -182,13 +200,21 @@ class EnablePanel(wx.Panel):
 class EventSelect(EnablePanel):
 	def __init__(self, parent):
 		EnablePanel.__init__(self, parent)
-		self.box = wx.StaticBox( self, wx.ID_ANY, 'Available Events' )
+		self.box = wx.StaticBox( self, label=u'Available Events' )
 		boxSizer = wx.StaticBoxSizer( self.box, wx.HORIZONTAL )
 		
 		self.SetBackgroundColour( wx.WHITE )
 		
 		self.events = []
 		self.event = None
+		
+		self.activeBar = EnableBar( self )
+		self.activeBar.SetToolTip( wx.ToolTip(u'\n'.join([
+			u'Click on an available Event in the table.',
+			u'Then press Select.',
+		] ) ) )
+		
+		self.selectButton = MakeRoundButton( self, 'Select', isSelect )
 		
 		self.headerNames = ['Event', 'Bib', 'Name', 'Team', 'In', 'Out']
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
@@ -197,7 +223,7 @@ class EventSelect(EnablePanel):
 		self.grid.SetRowLabelSize( 40 )
 		self.grid.SetSelectionMode( wx.grid.Grid.SelectRows  )
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 		self.grid.SetLabelFont( font )
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
@@ -209,16 +235,12 @@ class EventSelect(EnablePanel):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP )
 			self.grid.SetColAttr( col, attr )
 		
-		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
-		
-		vs = wx.BoxSizer( wx.VERTICAL )	
-		self.selectButton = MakeRoundButton( self, 'Select', isSelect )
+		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
+		vs = wx.BoxSizer( wx.VERTICAL )
 		vs.AddSpacer( int(self.grid.GetColLabelSize() + FontSize*1.15 - RoundButtonSize/2) )
 		vs.Add( self.selectButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
 		boxSizer.Add( vs, 0, flag=wx.ALL, border = 4 )
-		
-		self.activeBar = wx.StaticText( self, wx.ID_ANY, '', size=(40, 0) )
-		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
+		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
 		
 		sizer = wx.BoxSizer( wx.VERTICAL )
 		sizer.Add( boxSizer, 1, flag=wx.EXPAND )
@@ -242,12 +264,11 @@ class EventSelect(EnablePanel):
 			
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(self.events) )
 		for row, e in enumerate(self.events):
-			self.grid.SetCellValue( row, 0, e.multi_line_name )
-			self.grid.SetCellValue( row, 1, e.multi_line_bibs )
-			self.grid.SetCellValue( row, 2, e.multi_line_rider_names )
-			self.grid.SetCellValue( row, 3, e.multi_line_rider_teams )
-			self.grid.SetCellValue( row, 4, e.multi_line_inlabels )
-			self.grid.SetCellValue( row, 5, e.multi_line_outlabels )
+			for col, v in enumerate([
+					e.multi_line_name,
+					e.multi_line_bibs, e.multi_line_rider_names, e.multi_line_rider_teams,
+					e.multi_line_inlabels, e.multi_line_outlabels ]):
+				self.grid.SetCellValue( row, col, unicode(v) )
 			if e.system != self.events[0].system:
 				for col in xrange(self.grid.GetNumberCols()):
 					self.grid.SetCellBackgroundColour( row, col, InactiveBackgroundColour )
@@ -264,14 +285,38 @@ class EventSelect(EnablePanel):
 class EventPosition(EnablePanel):
 	def __init__(self, parent):
 		EnablePanel.__init__(self, parent)
-		self.box = wx.StaticBox( self, wx.ID_ANY, 'Start Positions' )
+		self.box = wx.StaticBox( self, label='Start Positions' )
 		boxSizer = wx.StaticBoxSizer( self.box, wx.HORIZONTAL )
 		
 		self.SetBackgroundColour( wx.WHITE )
 		
 		self.event = None
 		
-		self.headerNames = ['Bib', 'Name', 'Team']
+		self.drawLotsBitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'dice.png'), wx.BITMAP_TYPE_PNG )
+		self.drawLotsGreyBitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'dice_grey.png'), wx.BITMAP_TYPE_PNG )
+		self.emptyBitmap = wx.EmptyBitmap( self.drawLotsBitmap.GetWidth(), self.drawLotsBitmap.GetHeight(), self.drawLotsBitmap.GetDepth() )
+		
+		dc = wx.MemoryDC()
+		dc.SelectObject(self.emptyBitmap)
+		dc.SetBrush( wx.WHITE_BRUSH )
+		dc.Clear()
+		dc.SelectObject(wx.NullBitmap)
+		
+		self.activeBar = EnableBar( self )
+		self.activeBar.SetToolTip( wx.ToolTip(u'\n'.join([
+			u'Record the Start Positions by dragging the row numbers in the table.',
+			u'Set any DNS in the Status column.',
+			u'Then press Start or Cancel.',
+		] ) ) )
+		
+		vs = wx.BoxSizer( wx.VERTICAL )
+		self.startButton = MakeRoundButton( self, 'Start' )
+		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
+		vs.Add( self.startButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
+		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
+		
+		self.headerNames = ['Bib', 'Name', 'Team', 'Status']
+		self.iColStatus = 3
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )
 		
@@ -285,6 +330,9 @@ class EventPosition(EnablePanel):
 			attr.SetReadOnly( True )
 			if self.headerNames[col] == 'Bib':
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP );
+			elif self.headerNames[col] == 'Status':
+				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['DNS', '']) )
+				attr.SetReadOnly( False )
 			self.grid.SetColAttr( col, attr )
 		
 		self.grid.AutoSizeColumns( False )								# Resize to fit the column name.
@@ -292,30 +340,16 @@ class EventPosition(EnablePanel):
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetCellValue( 0, col, '' )						# Remove the labels.
 		
-		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
+		self.drawLotsDisplay = wx.StaticBitmap( self, bitmap=self.drawLotsBitmap )
+		self.drawLotsDisplay.SetToolTip( wx.ToolTip( u'\n'.join([
+			u"Dice are active when riders need to draw lots to select their positions.",
+			u"Dice are inactive when riders' start positions are known.",
+		] ) ) )
 		
-		self.drawLotsBitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'dice.png'), wx.BITMAP_TYPE_PNG )
-		self.drawLotsGreyBitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'dice_grey.png'), wx.BITMAP_TYPE_PNG )
-		self.emptyBitmap = wx.EmptyBitmap( self.drawLotsBitmap.GetWidth(), self.drawLotsBitmap.GetHeight(), self.drawLotsBitmap.GetDepth() )
-		
-		dc = wx.MemoryDC()
-		dc.SelectObject(self.emptyBitmap)
-		dc.SetBrush( wx.WHITE_BRUSH )
-		dc.Clear()
-		dc.SelectObject(wx.NullBitmap)
-		
-		self.drawLotsDisplay = wx.StaticBitmap( self, wx.ID_ANY, self.drawLotsBitmap )
-		boxSizer.Add( self.drawLotsDisplay, 0, flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border = 4 )
-		
-		vs = wx.BoxSizer( wx.VERTICAL )
-		self.startButton = MakeRoundButton( self, 'Start' )
-		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
-		vs.Add( self.startButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
-		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
-		boxSizer.Add( vs, 0, flag=wx.ALL, border = 4 )
-
-		self.activeBar = wx.StaticText( self, wx.ID_ANY, '', size=(40, 0) )
 		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
+		boxSizer.Add( vs, 0, flag=wx.ALL, border = 4 )
+		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
+		boxSizer.Add( self.drawLotsDisplay, 0, flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border = 4 )
 		
 		sizer = wx.BoxSizer( wx.VERTICAL )
 		sizer.Add( boxSizer, 1, flag=wx.EXPAND )
@@ -337,6 +371,10 @@ class EventPosition(EnablePanel):
 			self.drawLotsDisplay.SetBitmap( self.emptyBitmap )
 			return
 		
+		self.drawLotsDisplay.Show( not Model.model.competition.isMTB )
+		
+		DQs, DNSs, DNFs = Model.model.competition.getRiderStates()
+		
 		start = self.event.starts[-1]
 		if self.startButton.IsEnabled():
 			self.drawLotsDisplay.SetBitmap( self.drawLotsBitmap if start.canDrawLots else self.emptyBitmap )
@@ -348,44 +386,72 @@ class EventPosition(EnablePanel):
 		state = self.event.competition.state
 		for row, p in enumerate(startPositions):
 			rider = state.labels[p]
-			self.grid.SetCellValue( row, 0, str(rider.bib) )
-			self.grid.SetCellValue( row, 1, rider.full_name )
-			self.grid.SetCellValue( row, 2, rider.team )
+			for col, v in enumerate([rider.bib, rider.full_name, rider.team,
+					'DNS' if (rider in DNSs or rider.bib in CacheDNSs) else ''] ):
+				self.grid.SetCellValue( row, col, unicode(v) )
 		
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
 
 	def commit( self ):
-		pass
+		self.grid.SaveEditControlValue()
+		self.grid.HideCellEditControl()
+
+		if not self.event:
+			self.grid.ClearGrid()
+			return
+
+		startPositions = []
+		for row in xrange(self.grid.GetNumberRows()):
+			bib = self.grid.GetCellValue( row, 0 )
+			try:
+				bib = int(bib)
+			except:
+				continue
+			if self.grid.GetCellValue(row, self.iColStatus).strip():
+				CacheDNSs.add( bib )
+			else:
+				CacheDNSs.discard( bib )
+			startPositions.append( (bib, '') )
+		
+		start = self.event.starts[-1]
+		start.setStartPositions( startPositions )
+		
+		Model.model.setChanged( True )
+		Utils.setTitle()
 
 class EventOutcome(EnablePanel):
 	def __init__(self, parent):
 		EnablePanel.__init__(self, parent)
-		self.box = wx.StaticBox( self, wx.ID_ANY, 'Outcome' )
+		self.box = wx.StaticBox( self, label='Outcome' )
 		boxSizer = wx.StaticBoxSizer( self.box, wx.HORIZONTAL )
 		
 		self.event = None
 		
 		self.SetBackgroundColour( wx.WHITE )
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
-		self.outcomeStatus = wx.StaticText( self, wx.ID_ANY, 'Waiting for Race Outcome...' )
-		self.outcomeStatus.SetFont( font )
+		self.activeBar = EnableBar( self )
+		self.activeBar.SetToolTip( wx.ToolTip('\n'.join([
+			'Wait for the Event to complete.',
+			'Then press OK, Restart or Cancel',
+		] ) ) )
 		
 		self.okButton = MakeRoundButton( self, 'OK' )
 		self.restartButton = MakeRoundButton( self, 'Restart', isRestart )
 		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
 		
-		boxSizer.Add( self.outcomeStatus, flag=wx.ALL|wx.ALIGN_CENTRE_VERTICAL|wx.ALIGN_RIGHT, border = 8 )
-		boxSizer.AddStretchSpacer()
-		boxSizer.Add( self.cancelButton, flag=wx.ALL, border = 8 )
+		font = GetFont()
+		self.outcomeStatus = wx.StaticText( self, label='Waiting for Event Outcome...' )
+		self.outcomeStatus.SetFont( font )
+		
+		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )		
+		boxSizer.Add( self.okButton, flag=wx.ALL, border = 8 )
 		boxSizer.AddSpacer( 32 )
 		boxSizer.Add( self.restartButton, flag=wx.ALL, border = 8 )
-		boxSizer.AddSpacer( 64 )
-		boxSizer.Add( self.okButton, flag=wx.ALL, border = 8 )
-		
-		self.activeBar = wx.StaticText( self, wx.ID_ANY, '', size=(40, 0) )
-		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
+		boxSizer.AddSpacer( 32 )
+		boxSizer.Add( self.cancelButton, flag=wx.ALL, border = 8 )
+		boxSizer.Add( self.outcomeStatus, flag=wx.ALL|wx.ALIGN_CENTRE_VERTICAL|wx.ALIGN_RIGHT, border = 8 )
+		boxSizer.AddStretchSpacer()
 		
 		sizer = wx.BoxSizer( wx.VERTICAL )
 		sizer.Add( boxSizer, 1, flag=wx.EXPAND )
@@ -399,7 +465,6 @@ class EventOutcome(EnablePanel):
 		self.outcomeStatus.SetLabel( 'Waiting for Race Outcome...' if enable else '' )
 		self.Refresh()
 
-		
 	def refresh( self ):
 		pass
 		
@@ -417,13 +482,13 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		
 		vs = wx.BoxSizer( wx.VERTICAL )
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 		
 		bitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'checkered_flag_wavy.png'), wx.BITMAP_TYPE_PNG )
-		flagBitmap = wx.StaticBitmap( self, wx.ID_ANY, bitmap )
+		flagBitmap = wx.StaticBitmap( self, bitmap=bitmap )
 		
-		title = wx.StaticText(self, wx.ID_ANY, 'Confirm Result' )
-		title.SetFont( font )
+		title = wx.StaticText(self, label='Confirm Event Result' )
+		title.SetFont( wx.FontFromPixelSize(wx.Size(0,FontSize*1.5), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL) )
 		
 		hsTitle = wx.BoxSizer( wx.HORIZONTAL )
 		hsTitle.Add( flagBitmap, 0, flag=wx.EXPAND|wx.ALL, border = 4 )
@@ -441,21 +506,22 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		vs.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
 		
 		self.okButton = MakeRoundButton( self, 'OK' )
-		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
 		self.okButton.Bind( wx.EVT_BUTTON, self.onOK )
+		
+		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
 		self.cancelButton.Bind( wx.EVT_BUTTON, self.onCancel )
 		
 		hs = wx.BoxSizer( wx.HORIZONTAL )
-		hs.Add( self.cancelButton, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
-		hs.AddStretchSpacer()
 		hs.Add( self.okButton, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
+		hs.AddStretchSpacer()
+		hs.Add( self.cancelButton, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
 		
 		vs.Add( hs, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
 		
 		self.SetSizer( vs )
 	
 	def refresh( self, grid ):
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 	
 		Utils.AdjustGridSize( self.grid, rowsRequired = grid.GetNumberRows(), colsRequired = grid.GetNumberCols() + 1 )
 		self.grid.SetColLabelValue( 0, 'Pos' )
@@ -473,7 +539,7 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 			if headerName == 'Bib':
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP );
 			elif headerName.startswith('Time'):
-				attr.SetRenderer( gridlib.GridCellFloatRenderer(-1, 3) )
+				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_CENTRE )
 			attr.SetReadOnly( True )
 			self.grid.SetColAttr( col+1, attr )
 		
@@ -482,7 +548,7 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		results.sort( key = lambda x: x[iColStatus] )
 		
 		for row in xrange(grid.GetNumberRows()):
-			self.grid.SetCellValue( row, 0, str(row+1) )
+			self.grid.SetCellValue( row, 0, unicode(row+1) )
 			for col in xrange(grid.GetNumberCols()):
 				v = results[row][col]
 				self.grid.SetCellValue( row, col+1, v if v != '0.000' else '' )
@@ -495,7 +561,6 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		
 		self.CentreOnParent(wx.BOTH)
 		self.SetFocus()
-
 	
 	def onOK( self, event ):
 		self.EndModal( wx.ID_OK )
@@ -503,16 +568,29 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 	def onCancel( self, event ):
 		self.EndModal( wx.ID_CANCEL )
 
-	
+
 class EventFinishOrder(EnablePanel):
 	def __init__(self, parent):
 		EnablePanel.__init__(self, parent)
-		self.box = wx.StaticBox( self, wx.ID_ANY, 'Result' )
+		self.box = wx.StaticBox( self, label='Result' )
 		boxSizer = wx.StaticBoxSizer( self.box, wx.HORIZONTAL )
 		
 		self.event = None
 		
 		self.SetBackgroundColour( wx.WHITE )
+		
+		self.activeBar = EnableBar( self )
+		self.activeBar.SetToolTip( wx.ToolTip('.\n'.join([
+			'Record the Finish Order by dragging the row numbers in the table.',
+			'Record REL, DNF and DQ in the Status column.',
+			'Then press OK or Cancel.'
+		] ) ) )
+		
+		vs = wx.BoxSizer( wx.VERTICAL )
+		self.okButton = MakeRoundButton( self, 'OK' )
+		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
+		vs.Add( self.okButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
+		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
 		
 		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Time    ']
 		self.iColStatus = self.headerNames.index( 'Status' )
@@ -520,7 +598,7 @@ class EventFinishOrder(EnablePanel):
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 		self.grid.SetLabelFont( font )
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
@@ -531,12 +609,12 @@ class EventFinishOrder(EnablePanel):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP );
 				attr.SetReadOnly( True )
 			elif self.headerNames[col].startswith('Time'):
-				attr.SetEditor( gridlib.GridCellFloatEditor(-1, 3) )
-				attr.SetRenderer( gridlib.GridCellFloatRenderer(-1, 3) )
+				attr.SetEditor( HighPrecisionTimeEditor() )
+				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_CENTRE )
 			elif col == 1 or col == 2:
 				attr.SetReadOnly( True )
 			elif col == self.iColStatus:
-				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['Rel', 'DQ', 'DNF', '']) )
+				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['Rel', 'DQ', 'DNF', 'DNS', '']) )
 			self.grid.SetColAttr( col, attr )
 		
 		self.grid.AutoSizeColumns( False )								# Resize to fit the column name.
@@ -544,18 +622,9 @@ class EventFinishOrder(EnablePanel):
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetCellValue( 0, col, '' )						# Remove the labels.
 		
-		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
-		
-		vs = wx.BoxSizer( wx.VERTICAL )	
-		self.okButton = MakeRoundButton( self, 'OK' )
-		self.cancelButton = MakeRoundButton( self, 'Cancel', isCancel )
-		vs.Add( self.okButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
-		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
-		
-		boxSizer.Add( vs, 0, flag=wx.ALL, border = 4 )
-		
-		self.activeBar = wx.StaticText( self, wx.ID_ANY, '', size=(40, 0) )
 		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
+		boxSizer.Add( vs, 0, flag=wx.ALL, border = 4 )
+		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
 		
 		sizer = wx.BoxSizer( wx.VERTICAL )
 		sizer.Add( boxSizer, 1, flag=wx.EXPAND )
@@ -576,28 +645,34 @@ class EventFinishOrder(EnablePanel):
 			self.grid.ClearGrid()
 			return
 		
-		# Guess finish order by qualifying time.
+		# Propose finish order by qualifying time.
 		state = self.event.competition.state
 		finishPositions = sorted( self.event.starts[-1].startPositions, key = lambda r: state.labels[r].qualifyingTime )
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(finishPositions) )
 		
 		state = self.event.competition.state
-		for row, p in enumerate(finishPositions):
-			rider = state.labels[p]
-			self.grid.SetCellValue( row, 0, str(rider.bib) )
-			self.grid.SetCellValue( row, 1, rider.full_name )
-			self.grid.SetCellValue( row, 2, rider.team )
-			self.grid.SetCellValue( row, 3, '' )
-			self.grid.SetCellValue( row, 4, '' )
+		row = 0
+		# List DNS starters at the end.
+		for b in [False, True]:
+			for p in finishPositions:
+				rider = state.labels[p]
+				if (rider.bib in CacheDNSs) == b:
+					for col, v in enumerate([rider.bib, rider.full_name, rider.team, 'DNS' if rider.bib in CacheDNSs else '', '']):
+						self.grid.SetCellValue( row, col, unicode(v) )
+					row += 1
 		
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
 
 	def commit( self ):
+		self.grid.SaveEditControlValue()
+		
 		if not self.event:
 			self.grid.ClearGrid()
 			return
 
+		iColTime = self.grid.GetNumberCols() - 1
+		
 		places = []
 		times = []
 		for row in xrange(self.grid.GetNumberRows()):
@@ -610,7 +685,7 @@ class EventFinishOrder(EnablePanel):
 			places.append( (bib, status) )
 			
 			try:
-				t = float( self.grid.GetCellValue( row, self.grid.GetNumberCols() - 1) )
+				t = Utils.StrToSeconds( self.grid.GetCellValue(row, iColTime) )
 			except ValueError:
 				continue
 			times.append( (row+1, t) )
@@ -625,11 +700,7 @@ class EventFinishOrder(EnablePanel):
 		Utils.setTitle()
 		
 class Events(wx.Panel):
-	""""""
- 
-	#----------------------------------------------------------------------
 	def __init__(self, parent):
-		"""Constructor"""
 		wx.Panel.__init__(self, parent)
 		
 		self.eventSelect = EventSelect( self )
@@ -667,6 +738,7 @@ class Events(wx.Panel):
 		
 	#-------------------------------------------------------------------------
 	def doEventSelectSelect( self, e ):
+		CacheDNSs.clear()
 		if not self.eventSelect.grid.GetNumberRows():
 			return
 		selectedRows = self.eventSelect.grid.GetSelectedRows()
@@ -684,6 +756,7 @@ class Events(wx.Panel):
 		
 	#-------------------------------------------------------------------------
 	def doEventPositionStart( self, e ):
+		self.eventPosition.commit()
 		self.setState( 2 )
 		
 	def doEventPositionCancel( self, e ):
@@ -746,14 +819,10 @@ class Events(wx.Panel):
 		self.eventResult.event = None
 		self.setState( 0 )
 		
-########################################################################
+#--------------------------------------------------------------------------
 
 class EventsFrame(wx.Frame):
-	""""""
- 
-	#----------------------------------------------------------------------
 	def __init__(self):
-		"""Constructor"""
 		wx.Frame.__init__(self, None, title="Events Test", size=(1000,800) )
 		self.panel = Events(self)
 		self.Show()
@@ -761,6 +830,6 @@ class EventsFrame(wx.Frame):
 #----------------------------------------------------------------------
 if __name__ == "__main__":
 	app = wx.App(False)
-	SetDefaultData()
+	Model.model = SetDefaultData()
 	frame = EventsFrame()
 	app.MainLoop()

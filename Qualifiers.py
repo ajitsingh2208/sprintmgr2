@@ -6,20 +6,29 @@ import sys
 import TestData
 import Utils
 import Model
+from Competitions import SetDefaultData
 from ReorderableGrid import ReorderableGrid
-from Events import FontSize
+from Events import GetFont
+from HighPrecisionTimeEditor import HighPrecisionTimeEditor
 
+#--------------------------------------------------------------------------------
 class Qualifiers(wx.Panel):
-	""""""
- 
-	#----------------------------------------------------------------------
+
 	def __init__(self, parent):
-		"""Constructor"""
 		wx.Panel.__init__(self, parent)
  
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
-		self.title = wx.StaticText(self, wx.ID_ANY, "Enter each Rider's Qualifying Time")
+		font = GetFont()
+		self.title = wx.StaticText(self, wx.ID_ANY, "Enter each rider's qualifying time.")
 		self.title.SetFont( font )
+		
+		self.renumberButton = wx.Button( self, wx.ID_ANY, 'Renumber Bibs by Time' )
+		self.renumberButton.SetFont( font )
+		self.renumberButton.Bind( wx.EVT_BUTTON, self.doRenumber )
+		
+		hs = wx.BoxSizer( wx.HORIZONTAL )
+		hs.Add( self.title, 0, flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border = 6 )
+		hs.AddStretchSpacer()
+		hs.Add( self.renumberButton, 0, flag=wx.ALL, border = 6 )
  
 		self.headerNames = ['Bib', 'Name', 'Team', 'Time']
 		self.iTime = self.headerNames.index( 'Time' )
@@ -33,12 +42,13 @@ class Qualifiers(wx.Panel):
 
 		# Set specialized editors for appropriate columns.
 		self.grid.SetLabelFont( font )
+		timeCol = self.grid.GetNumberCols() - 1
 		for col in xrange(self.grid.GetNumberCols()):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
-			if col == self.grid.GetNumberCols() - 1:
-				attr.SetRenderer( gridlib.GridCellFloatRenderer(-1, 3) )
-				attr.SetEditor( gridlib.GridCellFloatEditor(-1, 3) )
+			if col == timeCol:
+				attr.SetEditor( HighPrecisionTimeEditor() )
+				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_CENTRE )
 			else:
 				if col == 0:
 					attr.SetRenderer( gridlib.GridCellNumberRenderer() )
@@ -46,7 +56,7 @@ class Qualifiers(wx.Panel):
 			self.grid.SetColAttr( col, attr )
 		
 		sizer = wx.BoxSizer(wx.VERTICAL)
-		sizer.Add( self.title, 0, flag=wx.ALL, border = 6 )
+		sizer.Add( hs, 0, flag=wx.ALL|wx.EXPAND, border = 6 )
 		sizer.Add(self.grid, 1, flag=wx.EXPAND|wx.ALL, border = 6)
 		self.SetSizer(sizer)
 		
@@ -69,7 +79,7 @@ class Qualifiers(wx.Panel):
 			team = data[3]
 			time = data[-1]
 			for col, d in enumerate([bib, name, team, time]):
-				self.grid.SetCellValue( row, col, str(d) )
+				self.grid.SetCellValue( row, col, unicode(d) )
 		
 		# Fix up the column and row sizes.
 		self.grid.AutoSizeColumns( False )
@@ -79,36 +89,63 @@ class Qualifiers(wx.Panel):
 		model = Model.model
 		riders = model.riders
 		
+		self.renumberButton.Show( model.competition.isMTB )
+		
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(riders) )
 		for row, r in enumerate(riders):
-			for col, value in enumerate([str(r.bib), r.full_name, r.team, '%.3f' % r.qualifyingTime]):
+			for col, value in enumerate([str(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
 				self.grid.SetCellValue( row, col, value )
 				
 		# Fix up the column and row sizes.
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
+		self.grid.SetColSize( self.grid.GetNumberCols()-1, 96 )
 		
 		self.Layout()
 		self.Refresh()
+		
+	def setQT( self ):
+		# The qualifying times can be changed at any time, however, if the competition is under way, the events cannot
+		# be adjusted.
+		model = Model.model
+		riders = model.riders
+		
+		self.grid.SaveEditControlValue()
+
+		for row in xrange(self.grid.GetNumberRows()):
+			v = self.grid.GetCellValue( row, self.iTime ).strip()
+			if v:
+				qt = Utils.StrToSeconds( v )
+			else:
+				qt = Model.QualifyingTimeDefault
+				
+			qt = min( qt, Model.QualifyingTimeDefault )
+			if riders[row].qualifyingTime != qt:
+				riders[row].qualifyingTime = qt
+				model.setChanged( True )
 		
 	def commit( self ):
 		# The qualifying times can be changed at any time, however, if the competition is underway, the events cannot
 		# be adusted.
 		model = Model.model
 		riders = model.riders
-		
-		for row in xrange(self.grid.GetNumberRows()):
-			try:
-				qt = float(self.grid.GetCellValue(row, self.iTime))
-			except:
-				qt = 60.0
-			if riders[row].qualifyingTime != qt:
-				riders[row].qualifyingTime = qt
-				model.setChanged( True )
-			
+		self.setQT()
 		if model.canReassignStarters():
 			model.setQualifyingTimes()
 			Utils.getMainWin().resetEvents()
+			
+	def doRenumber( self, event ):
+		if not Utils.MessageOKCancel( self, 'Sequence Bib numbers in Increasing Order by Qualifying Time.\n\nContinue?', 'Renumber Riders' ):
+			return
+	
+		self.setQT()
+		
+		model = Model.model
+		riders = sorted( model.riders, key = lambda x: x.qualifyingTime )
+		for r, rider in enumerate(riders):
+			rider.bib = r+1
+		
+		wx.CallAfter( self.refresh )
 		
 ########################################################################
 
@@ -120,11 +157,12 @@ class QualifiersFrame(wx.Frame):
 		"""Constructor"""
 		wx.Frame.__init__(self, None, title="Qualifier Grid Test", size=(800,600) )
 		panel = Qualifiers(self)
-		panel.setTestData()
+		panel.refresh()
 		self.Show()
  
 #----------------------------------------------------------------------
 if __name__ == "__main__":
+	Model.model = SetDefaultData()
 	app = wx.App(False)
 	frame = QualifiersFrame()
 	app.MainLoop()

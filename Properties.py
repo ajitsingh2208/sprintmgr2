@@ -2,32 +2,37 @@ import wx
 
 import os
 import sys
+import Utils
 import Model
 from FieldDef import FieldDef
-from Competitions import SetDefaultData, getCompetitions
-from Events import FontSize
-import Utils
+from Competitions import SetDefaultData, getCompetitions, DoRandomSimulation
+from ReorderableGrid import ReorderableGrid
+from GraphDraw import Graph
+from Events import GetFont, GetBoldFont
 
 class Properties(wx.Panel):
-	""""""
- 
-	#----------------------------------------------------------------------
+
 	def __init__(self, parent):
-		"""Constructor"""
 		wx.Panel.__init__(self, parent)
 		
 		model = Model.model
 		
 		self.competitionFormat = 0
-		competitionChoices = ['%s (%d Starters)' % (c.name, c.starters) for c in getCompetitions()]
+		competitionChoices = [u'{}. {} ({} Starters)'.format(i+1, c.name, c.starters) for i, c in enumerate(getCompetitions())]
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = GetFont()
 		
 		self.modelFields = [FieldDef(attr = a, data = getattr(model, a))
 			for a in ['competition_name', 'date', 'track', 'organizer', 'category', 'chief_official']]
 		self.competitionField = FieldDef(attr = 'competitionFormat', choices = competitionChoices)
  
-		fs = wx.FlexGridSizer( len(self.modelFields), 2, 4, 4 )
+		self.sampleLabel = wx.StaticText( self, label=_('Sample Competition:') )
+		self.sampleLabel.SetFont( GetBoldFont() )
+		
+		self.graph = Graph( self )
+		#self.SetToolTip( wx.ToolTip(_("Sample competition in this Competition Format.")) )
+ 
+		fs = wx.FlexGridSizer( cols=2, vgap=4, hgap=4 )
 		for f in self.modelFields:
 			label, ctrl = f.makeCtrls( self )
 			label.SetFont( font )
@@ -41,14 +46,55 @@ class Properties(wx.Panel):
 		fs.Add( label, flag=wx.ALIGN_RIGHT | wx.ALIGN_CENTRE_VERTICAL )
 		fs.Add( ctrl, flag=wx.EXPAND )
 		self.competitionFormatCtrl = ctrl
+		self.competitionFormatCtrl.Bind( wx.EVT_CHOICE, self.updateGraph )
 		
 		fs.AddGrowableCol( 1, 1 )
-		self.refresh()
 		
 		borderSizer = wx.BoxSizer( wx.VERTICAL )
-		borderSizer.Add( fs, flag=wx.ALL|wx.EXPAND, border = 8 )
+		borderSizer.Add( fs, 0, flag=wx.ALL, border = 8 )
+		borderSizer.Add( self.sampleLabel, flag=wx.TOP|wx.LEFT|wx.RIGHT, border = 8 )
+		borderSizer.Add( self.graph, 1, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.EXPAND, border = 8 )
 		self.SetSizer( borderSizer )
+	
+	def getGrid( self ):
+		headerNames = [u'', u'']
 		
+		grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
+		grid.DisableDragRowSize()
+		grid.SetRowLabelSize( 0 )
+		grid.EnableReorderRows( False )
+		grid.CreateGrid( len(self.modelFields) + 1, len(headerNames) )
+		for col, h in enumerate(headerNames):
+			grid.SetColLabelValue( col, h )
+		grid.Show( False )
+		
+		for row, fd in enumerate(self.modelFields):
+			grid.SetCellValue( row, 0, fd.name )
+			grid.SetCellAlignment( row, 0, wx.ALIGN_RIGHT, wx.ALIGN_BOTTOM )
+			grid.SetCellValue( row, 1, fd.getText() )
+
+		row = len(self.modelFields)
+		grid.SetCellValue( row, 0, _('Competition Format') )
+		grid.SetCellAlignment( row, 0, wx.ALIGN_RIGHT, wx.ALIGN_BOTTOM )
+		grid.SetCellValue( row, 1, self.competitionFormatCtrl.GetStringSelection().split( u'.', 1 )[1].strip() )
+
+		return grid
+		
+	def updateGraph( self, event = None ):
+		competition = getCompetitions()[self.competitionFormatCtrl.GetSelection()]
+		self.graph.model = model = SetDefaultData( competition.name, random=True )
+		for f in self.modelFields:
+			f.commit( model )
+		
+		c = u"\u25AF"
+		for rr in model.riders:
+			rr.first_name = c * len(rr.first_name)
+			rr.last_name = c * len(rr.last_name)
+			rr.team = c * len(rr.team)
+		
+		DoRandomSimulation( model )
+		self.graph.Refresh()
+	
 	def refresh( self ):
 		model = Model.model
 		for f in self.modelFields:
@@ -58,7 +104,7 @@ class Properties(wx.Panel):
 			if c.name == model.competition.name:
 				self.competitionFormatCtrl.SetSelection( i )
 				break
-		self.Refresh()
+		self.updateGraph()
 
 	def commit( self ):
 		model = Model.model
@@ -87,11 +133,17 @@ class PropertiesFrame(wx.Frame):
 		"""Constructor"""
 		wx.Frame.__init__(self, None, title="Properties Test", size=(800,600) )
 		panel = Properties(self)
+		panel.refresh()
 		self.Show()
  
 #----------------------------------------------------------------------
 if __name__ == "__main__":
 	app = wx.App(False)
-	SetDefaultData()
+	Model.model = SetDefaultData()
+	
+	with open('competitions.csv', 'w') as f:
+		for i, competition in enumerate(getCompetitions()):
+			f.write( '{},{},{}\n'.format(i+1, competition.name, competition.starters) )
+	
 	frame = PropertiesFrame()
 	app.MainLoop()
