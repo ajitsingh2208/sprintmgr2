@@ -8,6 +8,11 @@ import Utils
 
 QualifyingTimeDefault = 99*60*60
 
+Sprint200mQualificationCompetitionTime = 60.0
+SprintFinalCompetitionTime = 3*60.0
+
+KeirinCompetitionTime = 5*60.0
+
 class Rider( object ):
 	def __init__( self, bib, first_name = '', last_name = '', team = '', team_code = '', license = '', qualifyingTime = QualifyingTimeDefault ):
 		self.bib = int(bib)
@@ -293,6 +298,15 @@ class Event( object ):
 		self.tournament = None
 	
 	@property
+	def competitionTime( self ):
+		if self.competition.isSprint:
+			if self.competition.isKeirin:
+				return KeirinCompetitionTime
+			else:
+				return (1 if self.heatsMax == 1 else 1.5) * SprintFinalCompetitionTime
+		return None
+	
+	@property
 	def isSemiFinal( self ):
 		return self.competition.isMTB and self.system == self.tournament.systems[-2]
 	
@@ -504,6 +518,8 @@ class Competition( object ):
 		outLabels = set()
 		self.starters = 0
 		self.isMTB = ('XCE' in name or any( ('RR' in '|'.join(e.others)) for t, s, e in self.allEvents() ))
+		self.isSprint = not self.isMTB
+		self.isKeirin = 'Kerin' in name
 		
 		for t, s, e in self.allEvents():
 			e.competition = self
@@ -540,6 +556,10 @@ class Competition( object ):
 			for system in tournament.systems:
 				for event in system.events:
 					yield tournament, system, event
+	
+	@property
+	def competitionTime( self ):
+		return None if not self.isSprint else sum( event.competitionTime for tournament, system, event in self.allEvents() )
 	
 	def reset( self ):
 		for tournament, system, event in self.allEvents():
@@ -720,11 +740,26 @@ class Tournament( object ):
 	def __init__( self, name, systems ):
 		self.name = name
 		self.systems = systems
+	
+	@property
+	def competitionTime( self ):
+		try:
+			return sum( system.competitionTime for system in self.systems )	
+		except TypeError:
+			return None
 
 class System( object ):
 	def __init__( self, name, events ):
 		self.name = name
 		self.events = events
+	
+	@property
+	def competitionTime( self ):
+		try:
+			return sum( event.competitionTime for event in self.events )	
+		except TypeError:
+			return None
+	
 
 class Model( object ):
 	communique_start = 100
@@ -741,6 +776,17 @@ class Model( object ):
 		self.changed = False
 		self.showResults = 0
 		self.communique_number = {}
+	
+	@property
+	def competitionTime( self ):
+		try:
+			return self.competition.competitionTime + self.qualifyingCompetitionTime
+		except TypeError:
+			return None
+			
+	@property
+	def qualifyingCompetitionTime( self ):
+		return None if self.competition.isMTB else len(self.riders) * Sprint200mQualificationCompetitionTime
 	
 	def getProperties( self ):
 		return { a : getattr(self, a) for a in ['competition_name', 'date', 'category', 'track', 'organizer', 'chief_official'] }

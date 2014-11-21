@@ -236,7 +236,7 @@ def SecondsToMMSS( secs = 0 ):
 def getHomeDir():
 	try:
 		homedir = shell.SHGetFolderPath(0, shellcon.CSIDL_APPDATA, 0, 0)
-		homedir = os.path.join( homedir, 'CrossMgr' )
+		homedir = os.path.join( homedir, 'SprintMgr' )
 		if not os.path.exists(homedir):
 			os.mkdir( homedir )
 	except:

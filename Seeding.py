@@ -24,9 +24,9 @@ class Seeding(wx.Panel):
 		self.title = wx.StaticText(self, wx.ID_ANY, "Seeding (set Bib to 0 to delete)    ")
 		self.title.SetFont( font )
 		
-		self.communiqueLabel = wx.StaticText( self, wx.ID_ANY, 'Communique:' )
+		self.communiqueLabel = wx.StaticText( self, label=u'Communiqu\u00E9:' )
 		self.communiqueLabel.SetFont( font )
-		self.communiqueNumber = wx.TextCtrl( self, wx.ID_ANY, '', size=(64,-1) )
+		self.communiqueNumber = wx.TextCtrl( self, size=(64,-1) )
 		self.communiqueNumber.SetFont( font )
 		
 		self.randomizeButton = wx.Button( self, wx.ID_ANY, 'Randomize...' )
@@ -57,15 +57,15 @@ class Seeding(wx.Panel):
 		
 		hs = wx.BoxSizer( wx.HORIZONTAL )
 		hs.Add( self.title, 0, flag=wx.ALIGN_CENTRE_VERTICAL )
-		hs.Add( self.communiqueLabel, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
-		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border = 4 )
+		hs.Add( self.communiqueLabel, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border=4 )
+		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border=4 )
 		hs.AddStretchSpacer()
-		hs.Add( self.randomizeButton, 0, flag = wx.ALL, border = 4 )
-		hs.Add( self.importButton, 0, flag = wx.ALL, border = 4 )
+		hs.Add( self.randomizeButton, 0, flag=wx.ALL, border=4 )
+		hs.Add( self.importButton, 0, flag=wx.ALL, border=4 )
 		
 		sizer = wx.BoxSizer(wx.VERTICAL)
-		sizer.Add( hs, 0, flag=wx.ALL|wx.EXPAND, border = 6 )
-		sizer.Add(self.grid, 1, flag=wx.EXPAND|wx.ALL, border = 6)
+		sizer.Add( hs, 0, flag=wx.ALL|wx.EXPAND, border=6 )
+		sizer.Add(self.grid, 1, flag=wx.EXPAND|wx.ALL, border=6)
 		self.SetSizer(sizer)
 		
 	def setColNames( self ):

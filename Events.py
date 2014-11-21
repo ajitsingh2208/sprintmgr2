@@ -9,6 +9,7 @@ from ReorderableGrid import ReorderableGrid, GridCellMultiLineStringRenderer
 from roundbutton import RoundButton
 from Competitions import SetDefaultData
 from HighPrecisionTimeEditor import HighPrecisionTimeEditor
+from Clock import Clock
 
 RoundButtonSize = 72
 
@@ -235,12 +236,16 @@ class EventSelect(EnablePanel):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP )
 			self.grid.SetColAttr( col, attr )
 		
+		self.clock = Clock( self, size=(128,128) )
+		self.clock.SetBackgroundColour( wx.WHITE )
+		
 		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
 		vs = wx.BoxSizer( wx.VERTICAL )
 		vs.AddSpacer( int(self.grid.GetColLabelSize() + FontSize*1.15 - RoundButtonSize/2) )
 		vs.Add( self.selectButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
 		boxSizer.Add( vs, 0, flag=wx.ALL, border = 4 )
 		boxSizer.Add( self.grid, 1, flag=wx.ALL|wx.EXPAND, border = 4 )
+		boxSizer.Add( self.clock, 0, flag=wx.ALL, border = 4 )
 		
 		sizer = wx.BoxSizer( wx.VERTICAL )
 		sizer.Add( boxSizer, 1, flag=wx.EXPAND )

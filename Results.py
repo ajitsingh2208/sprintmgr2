@@ -29,7 +29,7 @@ class Results(wx.Panel):
 		
 		self.communiqueLabel = wx.StaticText( self, wx.ID_ANY, u'Communiqu\u00E9:' )
 		self.communiqueLabel.SetFont( self.font )
-		self.communiqueNumber = wx.TextCtrl( self, wx.ID_ANY, '', size=(64,-1) )
+		self.communiqueNumber = wx.TextCtrl( self, wx.ID_ANY, '', size=(80,-1) )
 		self.communiqueNumber.SetFont( self.font )
 		
 		self.showResults.Bind( wx.EVT_LEFT_DOWN, self.onClickResults )
@@ -40,6 +40,7 @@ class Results(wx.Panel):
 		self.showTeams = wx.ToggleButton( self, wx.ID_ANY, u'Show Teams' )
 		self.showTeams.SetFont( self.font )
 		self.showTeams.Bind( wx.EVT_TOGGLEBUTTON, self.onToggleShow )
+		self.competitionTime = wx.StaticText( self )
  
 		self.headerNames = ['uPos', u'Bib', u'Rider', u'Team', u'License']
 		
@@ -60,6 +61,7 @@ class Results(wx.Panel):
 		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border = 4 )
 		hs.Add( self.showNames, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
 		hs.Add( self.showTeams, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
+		hs.Add( self.competitionTime, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border = 4 )
 		
 		sizer.Add(hs, 0, flag=wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, border = 6 )
 		sizer.Add(self.grid, 1, flag=wx.EXPAND|wx.ALL, border = 6)
@@ -185,6 +187,10 @@ class Results(wx.Panel):
 				for col, value in enumerate([pos, unicode(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
 					if col not in hideCols:
 						writeCell( value )
+						
+			competitionTime = model.qualifyingCompetitionTime
+			self.competitionTime.SetLabel( u'{}: {}'.format(_('Est. Competition Time'), Utils.formatTime(competitionTime)) 
+				if competitionTime else u'' )
 					
 		elif 'Final Classification' in resultName:
 			self.headerNames = [u'Pos', u'Bib', u'Name', u'Team', u'License']
@@ -203,6 +209,7 @@ class Results(wx.Panel):
 					for col, value in enumerate([classification, r.bib if r.bib else '', r.full_name, r.team, r.license]):
 						if col not in hideCols:
 							writeCell( unicode(value) )
+			self.competitionTime.SetLabel( u'' ) 
 		else:
 			# Find the Tournament and System selected.
 			keepGoing = True
@@ -263,6 +270,10 @@ class Results(wx.Panel):
 					except (KeyError, IndexError, ValueError):
 						value = ''
 					writeCell( value )
+			
+			competitionTime = system.competitionTime
+			self.competitionTime.SetLabel( u'{}: {}'.format(_('Est. Competition Time'), Utils.formatTime(competitionTime)) 
+				if competitionTime else u'' )
 		
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )

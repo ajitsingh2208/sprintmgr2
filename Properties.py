@@ -9,6 +9,7 @@ from Competitions import SetDefaultData, getCompetitions, DoRandomSimulation
 from ReorderableGrid import ReorderableGrid
 from GraphDraw import Graph
 from Events import GetFont, GetBoldFont
+from Clock import Clock
 
 class Properties(wx.Panel):
 
@@ -50,8 +51,16 @@ class Properties(wx.Panel):
 		
 		fs.AddGrowableCol( 1, 1 )
 		
+		self.clock = Clock( self, size=(200,200) )
+		
+		hSizer = wx.BoxSizer( wx.HORIZONTAL )
+		hSizer.Add( fs, 0, flag=wx.ALL, border = 8 )
+		hSizer.AddStretchSpacer()
+		hSizer.Add( self.clock, 0, flag=wx.ALL|wx.ALIGN_RIGHT|wx.ALIGN_CENTRE_VERTICAL, border = 8 )
+		hSizer.AddStretchSpacer()
+		
 		borderSizer = wx.BoxSizer( wx.VERTICAL )
-		borderSizer.Add( fs, 0, flag=wx.ALL, border = 8 )
+		borderSizer.Add( hSizer, flag=wx.EXPAND )
 		borderSizer.Add( self.sampleLabel, flag=wx.TOP|wx.LEFT|wx.RIGHT, border = 8 )
 		borderSizer.Add( self.graph, 1, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.EXPAND, border = 8 )
 		self.SetSizer( borderSizer )

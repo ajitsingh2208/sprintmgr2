@@ -6,55 +6,55 @@ import copy
 
 def getCompetitions():
 	competitions = [
-		Competition( 'Track: Sprint World Cup', [
-			Tournament( '', [
-				System( '1/8 Finals', [
-					Event( 'N1 N16 -> 1A1 1A2', 1 ),
-					Event( 'N2 N15 -> 2A1 2A2', 1 ),
-					Event( 'N3 N14 -> 3A1 3A2', 1 ),
-					Event( 'N4 N13 -> 4A1 4A2', 1 ),
-					Event( 'N5 N12 -> 5A1 5A2', 1 ),
-					Event( 'N6 N11 -> 6A1 6A2', 1 ),
-					Event( 'N7 N10 -> 7A1 7A2', 1 ),
-					Event( 'N8 N9  -> 8A1 8A2', 1 ),
-				]),
-				System( '1/4 Finals', [
-					Event( '1A1 8A1 -> 1B 1P', 3 ),
-					Event( '2A1 7A1 -> 2B 2P', 3 ),
-					Event( '3A1 6A1 -> 3B 3P', 3 ),
-					Event( '4A1 5A1 -> 4B 4P', 3 )
-				]),
-				System( '1/4 Finals 5-8', [
-					Event( '1P 2P 3P 4P -> 5R 6R 7R 8R', 1 )
-				]),
-				System( '1/2 Finals', [
-					Event( '1B 4B -> 1C1 1C2', 3 ),
-					Event( '2B 3B -> 2C1 2C2', 3 ),
-				]),
-				System( 'Finals', [
-					Event( '1C1 2C1 -> 1R 2R', 3 ),
-					Event( '1C2 2C2 -> 3R 4R', 3 )
-				]),
-			]),
-			Tournament( 'B', [
-				System( '1/4 Finals', [
-					Event( '1A2 8A2 -> 1D1 1TT', 1 ),
-					Event( '2A2 7A2 -> 2D1 2TT', 1 ),
-					Event( '3A2 6A2 -> 3D1 3TT', 1 ),
-					Event( '4A2 5A2 -> 4D1 4TT', 1 ),
-				]),
-				System( '1/2 Finals', [
-					Event( '1D1 4D1 -> 1E1 1E2', 1 ),
-					Event( '2D1 3D1 -> 2E1 2E2', 1 ),
-				]),
-				System( 'Finals', [
-						Event( '1E1 2E1 -> 9R 10R', 1 ),
-						Event( '1E2 2E2 -> 11R 12R', 1 ),
-				]),
-			]),
-		]),
+#		Competition( 'Track: Sprint World Cup', [
+#			Tournament( '', [
+#				System( '1/8 Finals', [
+#					Event( 'N1 N16 -> 1A1 1A2', 1 ),
+#					Event( 'N2 N15 -> 2A1 2A2', 1 ),
+#					Event( 'N3 N14 -> 3A1 3A2', 1 ),
+#					Event( 'N4 N13 -> 4A1 4A2', 1 ),
+#					Event( 'N5 N12 -> 5A1 5A2', 1 ),
+#					Event( 'N6 N11 -> 6A1 6A2', 1 ),
+#					Event( 'N7 N10 -> 7A1 7A2', 1 ),
+#					Event( 'N8 N9  -> 8A1 8A2', 1 ),
+#				]),
+#				System( '1/4 Finals', [
+#					Event( '1A1 8A1 -> 1B 1P', 3 ),
+#					Event( '2A1 7A1 -> 2B 2P', 3 ),
+#					Event( '3A1 6A1 -> 3B 3P', 3 ),
+#					Event( '4A1 5A1 -> 4B 4P', 3 )
+#				]),
+#				System( '1/4 Finals 5-8', [
+#					Event( '1P 2P 3P 4P -> 5R 6R 7R 8R', 1 )
+#				]),
+#				System( '1/2 Finals', [
+#					Event( '1B 4B -> 1C1 1C2', 3 ),
+#					Event( '2B 3B -> 2C1 2C2', 3 ),
+#				]),
+#				System( 'Finals', [
+#					Event( '1C1 2C1 -> 1R 2R', 3 ),
+#					Event( '1C2 2C2 -> 3R 4R', 3 )
+#				]),
+#			]),
+#			Tournament( 'B', [
+#				System( '1/4 Finals', [
+#					Event( '1A2 8A2 -> 1D1 1TT', 1 ),
+#					Event( '2A2 7A2 -> 2D1 2TT', 1 ),
+#					Event( '3A2 6A2 -> 3D1 3TT', 1 ),
+#					Event( '4A2 5A2 -> 4D1 4TT', 1 ),
+#				]),
+#				System( '1/2 Finals', [
+#					Event( '1D1 4D1 -> 1E1 1E2', 1 ),
+#					Event( '2D1 3D1 -> 2E1 2E2', 1 ),
+#				]),
+#				System( 'Finals', [
+#						Event( '1E1 2E1 -> 9R 10R', 1 ),
+#						Event( '1E2 2E2 -> 11R 12R', 1 ),
+#				]),
+#			]),
+#		]),
 		
-		Competition( 'Track: Sprint World Championships', [
+		Competition( 'Track: Sprint World Cup and World Championships', [
 			Tournament( '', [
 				System( '1/16 Finals', [
 					Event( 'N1 N24 -> 1A 1TT', 1 ),
@@ -187,7 +187,7 @@ def getCompetitions():
 			])
 		]),
 		
-		Competition( 'Track: Sprint 1/2 World Cup', [
+		Competition( 'Track: Sprint 1/2 Former World Cup', [
 			Tournament( '', [
 				System( '1/4 Finals', [
 					Event( 'N1 N8 -> 1B 1P', 1 ),
