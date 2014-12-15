@@ -224,9 +224,9 @@ class Results(wx.Panel):
 			
 			heatsMax = max( event.heatsMax for event in system.events )
 			if heatsMax == 1:
-				self.headerNames = [u'Event',u'Bib',u'Name',u'Team',u'    ',u'Pos',u'Bib',u'Name',u'Team',u'Time']
+				self.headerNames = [u'Event',u'Bib',u'Name',u'Note',u'Team',u'    ',u'Pos',u'Bib',u'Name',u'Note',u'Team',u'Time']
 			else:
-				self.headerNames = [u'Event',u'Bib',u'Name',u'Team',u'H1',u'H2',u'H3',u'    ',u'Pos',u'Bib',u'Name',u'Team',u'Time']
+				self.headerNames = [u'Event',u'Bib',u'Name',u'Note',u'Team',u'H1',u'H2',u'H3',u'    ',u'Pos',u'Bib',u'Name',u'Note',u'Team',u'Time']
 			hideCols = self.getHideCols( self.headerNames )
 			self.headerNames = [h for c, h in enumerate(self.headerNames) if c not in hideCols]
 			
@@ -242,7 +242,8 @@ class Results(wx.Panel):
 				riders = [state.labels.get(c, None) for c in event.composition]
 				writeCell( u'\n'.join([unicode(rider.bib) if rider and rider.bib else '' for rider in riders]) )
 				if getattr(model, 'resultsShowNames', True):
-					writeCell( u'\n'.join([rider.full_name if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([rider.full_name  if rider else u'' for rider in riders]) )
+				writeCell( u'\n'.join([competition.getRelegationsWarningsStr(rider.bib, event, True) if rider else u'' for rider in riders]) )
 				if getattr(model, 'resultsShowTeams', True):
 					writeCell( u'\n'.join([rider.team if rider else '' for rider in riders]) )
 
@@ -262,6 +263,7 @@ class Results(wx.Panel):
 				writeCell( u'\n'.join([unicode(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
 				if getattr(model, 'resultsShowNames', True):
 					writeCell( u'\n'.join([rider.full_name if rider else '' for rider in riders]) )
+				writeCell( u'\n'.join([competition.getRelegationsWarningsStr(rider.bib, event, False) if rider else u'' for rider in riders]) )
 				if getattr(model, 'resultsShowTeams', True):
 					writeCell( u'\n'.join([rider.team if rider else '' for rider in riders]) )
 				if event.winner in state.labels:

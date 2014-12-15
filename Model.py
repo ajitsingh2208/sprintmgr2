@@ -117,7 +117,9 @@ class Start( object ):
 		'DNS':		3,
 		'DQ':		4,
 	}
-		
+	
+	warning = {}
+	
 	def __init__( self, event, lastStart ):
 		self.event = event
 		self.lastStart = lastStart
@@ -202,13 +204,14 @@ class Start( object ):
 		self.startPositions = [id for p, id in sorted((p, id) for id, p in startIdPosition.iteritems())]
 	
 	def setPlaces( self, places ):
-		''' places is of the form [(bib, status), (bib, status), ...] '''
+		''' places is of the form [(bib, status, warning), (bib, status, warning), ...] '''
 		state = self.event.competition.state
 		
 		remainingComposition = self.getRemainingComposition()
 		bibToId = { state.labels[c].bib: c for c in remainingComposition }
 		
 		self.noncontinue = {}
+		self.warning = set()
 		self.places = {}
 		self.finishPositions = []
 		
@@ -216,7 +219,7 @@ class Start( object ):
 		finishCode = self.finishCode
 		statusPlaceId = []
 		place = 0
-		for bib, status in places:
+		for bib, status, warning in places:
 		
 			id = bibToId[int(bib)]
 			if finishCode.get(status,0) >= 2:
@@ -230,6 +233,9 @@ class Start( object ):
 			if finishCode.get(status,0) <= 3:
 				place += 1
 				statusPlaceId.append( (finishCode.get(status,0), place, id) )
+				
+			if (unicode(warning)[:1] or u'0') in u'1TtYy':
+				self.addWarning( id )
 			
 		statusPlaceId.sort()
 		
@@ -269,6 +275,9 @@ class Start( object ):
 		
 	def addInside( self, id ):
 		self.inside.append( id )
+		
+	def addWarning( self, id ):
+		self.warning.add( id )
 		
 	def getRemainingComposition( self ):
 		state = self.event.competition.state
@@ -547,6 +556,36 @@ class Competition( object ):
 				system.i = j
 				for k, event in enumerate(system.events):
 					event.i = k
+	
+	def getRelegationsWarnings( self, bib, eventCur, before=False ):
+		relegations = 0
+		warnings = 0
+		for tournament, system, event in self.allEvents():
+			if before and event == eventCur:
+				break
+			for id in event.composition:
+				try:
+					if self.state.labels[id].bib == bib:
+						for start in event.starts:
+							if id in start.relegated:
+								relegations += 1
+							print start.warning
+							if id in start.warning:
+								warnings += 1
+				except KeyError:
+					pass
+			if event == eventCur:
+				break
+		return relegations, warnings
+		
+	def getRelegationsWarningsStr( self, bib, eventCur, before=False ):
+		relegations, warnings = self.getRelegationsWarnings(bib, eventCur, before)
+		s = []
+		if relegations:
+			s.append( u'{} {}'.format(relegations, u'Relegations' if relegations > 1 else u'Relegation') )
+		if warnings:
+			s.append( u'{} {}'.format(warnings, u'Warnings' if warnings > 1 else u'Warning') )
+		return u','.join( s )
 	
 	def canReassignStarters( self ):
 		return self.state.canReassignStarters()

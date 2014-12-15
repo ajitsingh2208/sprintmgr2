@@ -449,7 +449,7 @@ class EventOutcome(EnablePanel):
 		self.outcomeStatus = wx.StaticText( self, label='Waiting for Event Outcome...' )
 		self.outcomeStatus.SetFont( font )
 		
-		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )		
+		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
 		boxSizer.Add( self.okButton, flag=wx.ALL, border = 8 )
 		boxSizer.AddSpacer( 32 )
 		boxSizer.Add( self.restartButton, flag=wx.ALL, border = 8 )
@@ -536,6 +536,7 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		attr.SetReadOnly( True )
 		self.grid.SetColAttr( 0, attr )
 		
+		iColStatus = None
 		for col in xrange(grid.GetNumberCols()):
 			headerName = grid.GetColLabelValue(col)
 			self.grid.SetColLabelValue( col+1, headerName )
@@ -545,10 +546,14 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP );
 			elif headerName.startswith('Time'):
 				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_CENTRE )
+			elif headerName.startswith('Status'):
+				iColStatus = col
+			elif headerName.startswith('Warning'):
+				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
+				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
 			attr.SetReadOnly( True )
 			self.grid.SetColAttr( col+1, attr )
 		
-		iColStatus = grid.GetNumberCols() - 2
 		results = [ [grid.GetCellValue(row, col) for col in xrange(grid.GetNumberCols())] for row in xrange(grid.GetNumberRows()) ]
 		results.sort( key = lambda x: x[iColStatus] )
 		
@@ -573,7 +578,6 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 	def onCancel( self, event ):
 		self.EndModal( wx.ID_CANCEL )
 
-
 class EventFinishOrder(EnablePanel):
 	def __init__(self, parent):
 		EnablePanel.__init__(self, parent)
@@ -597,11 +601,13 @@ class EventFinishOrder(EnablePanel):
 		vs.Add( self.okButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
 		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
 		
-		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Time    ']
+		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Warning', 'Time    ']
 		self.iColStatus = self.headerNames.index( 'Status' )
+		self.iColWarning = self.headerNames.index( 'Warning' )
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )
+		self.grid.Bind( wx.grid.EVT_GRID_CELL_LEFT_CLICK, self.OnClick )
 		
 		font = GetFont()
 		self.grid.SetLabelFont( font )
@@ -620,6 +626,10 @@ class EventFinishOrder(EnablePanel):
 				attr.SetReadOnly( True )
 			elif col == self.iColStatus:
 				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['Rel', 'DQ', 'DNF', 'DNS', '']) )
+			elif col == self.iColWarning:
+				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
+				attr.SetEditor( gridlib.GridCellBoolEditor() )
+				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
 			self.grid.SetColAttr( col, attr )
 		
 		self.grid.AutoSizeColumns( False )								# Resize to fit the column name.
@@ -641,6 +651,14 @@ class EventFinishOrder(EnablePanel):
 			EnableRoundButton( b, enable, t )
 		self.activeBar.SetBackgroundColour( wx.Colour(0, 128, 0) if enable else wx.WHITE )
 		self.Refresh()
+		
+	def OnClick( self, event ):
+		row = event.GetRow()
+		col = event.GetCol()
+		if col == self.iColWarning:
+			self.grid.SetCellValue( row, col, u'1' if (self.grid.GetCellValue(row, col) or u'0') == u'0' else u'1' )
+		else:
+			event.Skip()
 		
 	def setEvent( self, event ):
 		self.event = event
@@ -687,7 +705,8 @@ class EventFinishOrder(EnablePanel):
 			except:
 				continue
 			status = self.grid.GetCellValue( row, self.iColStatus )
-			places.append( (bib, status) )
+			warning = self.grid.GetCellValue( row, self.iColWarning )
+			places.append( (bib, status, warning) )
 			
 			try:
 				t = Utils.StrToSeconds( self.grid.GetCellValue(row, iColTime) )
