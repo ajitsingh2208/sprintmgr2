@@ -21,7 +21,7 @@ class Seeding(wx.Panel):
  
 		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
 		
-		self.title = wx.StaticText(self, wx.ID_ANY, "Seeding (set Bib to 0 to delete)    ")
+		self.title = wx.StaticText(self, wx.ID_ANY, u"Seeding" + u':')
 		self.title.SetFont( font )
 		
 		self.communiqueLabel = wx.StaticText( self, label=u'Communiqu\u00E9:' )
@@ -56,7 +56,7 @@ class Seeding(wx.Panel):
 			self.grid.SetColAttr( col, attr )
 		
 		hs = wx.BoxSizer( wx.HORIZONTAL )
-		hs.Add( self.title, 0, flag=wx.ALIGN_CENTRE_VERTICAL )
+		hs.Add( self.title, 0, flag=wx.ALIGN_CENTRE_VERTICAL|wx.RIGHT, border = 8 )
 		hs.Add( self.communiqueLabel, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border=4 )
 		hs.Add( self.communiqueNumber, 0, flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL|wx.EXPAND, border=4 )
 		hs.AddStretchSpacer()
@@ -65,6 +65,7 @@ class Seeding(wx.Panel):
 		
 		sizer = wx.BoxSizer(wx.VERTICAL)
 		sizer.Add( hs, 0, flag=wx.ALL|wx.EXPAND, border=6 )
+		sizer.Add( wx.StaticText(self, label=u'Set Bib to 0 to Delete row.  Drag-and-drop row numbers to Change Sequence.'), flag=wx.LEFT, border = 8 )
 		sizer.Add(self.grid, 1, flag=wx.EXPAND|wx.ALL, border=6)
 		self.SetSizer(sizer)
 		

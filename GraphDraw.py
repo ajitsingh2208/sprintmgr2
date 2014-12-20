@@ -450,6 +450,8 @@ class GraphDraw( wx.PyPanel ):
 		
 		vs.Add( hs, 0, flag=wx.ALL, border = 6 )
 		
+		vs.Add( wx.StaticText(self, label=u'Click on a name below to show the progress through the competition.'), flag=wx.LEFT, border = 8 )
+		
 		self.graph = Graph( self )
 		vs.Add( self.graph, 1, flag=wx.ALL|wx.EXPAND, border = 6 )
 		
