@@ -765,6 +765,15 @@ class Competition( object ):
 			except StopIteration:
 				pass
 			
+			# Investigate later - should not have to do this!
+			already_seen = set()
+			results_non_duplicated = []
+			for classification, rider in results:
+				if not rider or rider not in already_seen:
+					already_seen.add( rider )
+					results_non_duplicated.append( (classification, rider) )
+			results = results_non_duplicated
+			
 			# Assign classification for all finishers.
 			results = [(p+1 if classification == 'Finisher' or rider in abnormalFinishers else classification, rider) for p, (classification, rider) in enumerate(results)]
 				
