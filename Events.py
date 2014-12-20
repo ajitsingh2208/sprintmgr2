@@ -550,10 +550,10 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_CENTRE )
 			elif headerName.startswith('Status'):
 				iColStatus = col
-			elif headerName.startswith('Warning'):
+			elif headerName.startswith('Warn'):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
 				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
-			elif headerName.startswith('Relegation'):
+			elif headerName.startswith('Rel'):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
 				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
 			attr.SetReadOnly( True )
@@ -606,10 +606,10 @@ class EventFinishOrder(EnablePanel):
 		vs.Add( self.okButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
 		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
 		
-		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Warning', 'Relegation', 'Time    ']
+		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Warn', 'Rel', 'Time    ']
 		self.iColStatus = self.headerNames.index( 'Status' )
-		self.iColWarning = self.headerNames.index( 'Warning' )
-		self.iColRelegation = self.headerNames.index( 'Relegation' )
+		self.iColWarning = self.headerNames.index( 'Warn' )
+		self.iColRelegation = self.headerNames.index( 'Rel' )
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )

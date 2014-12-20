@@ -582,10 +582,10 @@ class Competition( object ):
 	def getRelegationsWarningsStr( self, bib, eventCur, before=False ):
 		relegations, warnings = self.getRelegationsWarnings(bib, eventCur, before)
 		s = []
-		if relegations:
-			s.append( u'{} {}'.format(relegations, u'Relegations' if relegations > 1 else u'Relegation') )
 		if warnings:
-			s.append( u'{} {}'.format(warnings, u'Warnings' if warnings > 1 else u'Warning') )
+			s.append( u'{} {}'.format(warnings, u'Warn') )
+		if relegations:
+			s.append( u'{} {}'.format(relegations, u'Rel') )
 		return u','.join( s )
 	
 	def canReassignStarters( self ):
