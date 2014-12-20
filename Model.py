@@ -111,14 +111,13 @@ class Start( object ):
 	placesTimestamp = None		# Timestamp when places were modified.
 	
 	finishCode = {
-		'Rel':		1,
 		'Inside':	1,
 		'DNF':		2,
 		'DNS':		3,
 		'DQ':		4,
 	}
 	
-	warning = {}
+	warning = set()
 	
 	def __init__( self, event, lastStart ):
 		self.event = event
@@ -128,7 +127,7 @@ class Start( object ):
 		self.continuingPositions = []	# id, including finishers - no DNF and DNS.
 		self.places = {}		# In the format of places[composition] = place, place in 1, 2, 3, 4, etc.
 		self.times = {}			# In the format of times[1] = winner's time, times[2] = runner up's time, etc.
-		self.relegated = []		# Rider assigned a relegated position in this heat.
+		self.relegated = set()	# Rider assigned a relegated position in this heat.
 		self.inside = []		# Rider required to take inside position on next start.
 		self.noncontinue = {}	# In the format of noncontinue[composition] = reason
 		self.restartRequired = False
@@ -204,7 +203,7 @@ class Start( object ):
 		self.startPositions = [id for p, id in sorted((p, id) for id, p in startIdPosition.iteritems())]
 	
 	def setPlaces( self, places ):
-		''' places is of the form [(bib, status, warning), (bib, status, warning), ...] '''
+		''' places is of the form [(bib, status, warning, relegation), (bib, status, warning, relegation), ...] '''
 		state = self.event.competition.state
 		
 		remainingComposition = self.getRemainingComposition()
@@ -219,15 +218,13 @@ class Start( object ):
 		finishCode = self.finishCode
 		statusPlaceId = []
 		place = 0
-		for bib, status, warning in places:
+		for bib, status, warning, relegation in places:
 		
 			id = bibToId[int(bib)]
 			if finishCode.get(status,0) >= 2:
 				self.noncontinue[id] = status
 			
-			if status == 'Rel':
-				self.addRelegation( id ) 
-			elif status == 'Inside':
+			if status == 'Inside':
 				self.addInside( id ) 
 			
 			if finishCode.get(status,0) <= 3:
@@ -236,6 +233,9 @@ class Start( object ):
 				
 			if (unicode(warning)[:1] or u'0') in u'1TtYy':
 				self.addWarning( id )
+			
+			if (unicode(relegation)[:1] or u'0') in u'1TtYy':
+				self.addRelegation( id )
 			
 		statusPlaceId.sort()
 		
@@ -271,7 +271,9 @@ class Start( object ):
 		self.times = dict( times )
 	
 	def addRelegation( self, id ):
-		self.relegated.append( id )
+		if isinstance(self.relegated, list):
+			self.relegated = set( self.relegated )
+		self.relegated.add( id )
 		
 	def addInside( self, id ):
 		self.inside.append( id )
@@ -569,7 +571,6 @@ class Competition( object ):
 						for start in event.starts:
 							if id in start.relegated:
 								relegations += 1
-							print start.warning
 							if id in start.warning:
 								warnings += 1
 				except KeyError:

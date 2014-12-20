@@ -141,7 +141,7 @@ class RestartDialog( wx.Dialog ):
 				attr.SetReadOnly( True )
 			elif self.headerNames[col].startswith('Status'):
 				if len(start.getRemainingComposition()) > 2:
-					choices = ['Rel', 'DQ', 'DNF', '']
+					choices = ['DQ', 'DNF', '']
 					self.titleText.SetLabel( u'Restart Status Change' )
 				else:
 					choices = ['Inside', '']
@@ -168,7 +168,9 @@ class RestartDialog( wx.Dialog ):
 		for row in xrange(self.grid.GetNumberRows()):
 			bib = self.grid.GetCellValue( row, 0 )
 			status = self.grid.GetCellValue( row, self.iColStatus )
-			places.append( (bib, status) )
+			warning = self.grid.GetCellValue( row, self.iColWarning )
+			relegation = self.grid.GetCellValue( row, self.iColRelegation )
+			places.append( (bib, status, warning, relegation) )
 		
 		start = self.event.starts[-1]
 		start.setPlaces( places )
@@ -551,6 +553,9 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 			elif headerName.startswith('Warning'):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
 				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
+			elif headerName.startswith('Relegation'):
+				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
+				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
 			attr.SetReadOnly( True )
 			self.grid.SetColAttr( col+1, attr )
 		
@@ -591,7 +596,7 @@ class EventFinishOrder(EnablePanel):
 		self.activeBar = EnableBar( self )
 		self.activeBar.SetToolTip( wx.ToolTip('.\n'.join([
 			'Record the Finish Order by dragging the row numbers in the table.',
-			'Record REL, DNF and DQ in the Status column.',
+			'Record DNF and DQ in the Status column.',
 			'Then press OK or Cancel.'
 		] ) ) )
 		
@@ -601,9 +606,10 @@ class EventFinishOrder(EnablePanel):
 		vs.Add( self.okButton, flag=wx.LEFT|wx.RIGHT|wx.BOTTOM, border = 4 )
 		vs.Add( self.cancelButton, flag=wx.ALL, border = 4 )
 		
-		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Warning', 'Time    ']
+		self.headerNames = ['Bib', 'Name', 'Team', 'Status', 'Warning', 'Relegation', 'Time    ']
 		self.iColStatus = self.headerNames.index( 'Status' )
 		self.iColWarning = self.headerNames.index( 'Warning' )
+		self.iColRelegation = self.headerNames.index( 'Relegation' )
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )
@@ -625,8 +631,8 @@ class EventFinishOrder(EnablePanel):
 			elif col == 1 or col == 2:
 				attr.SetReadOnly( True )
 			elif col == self.iColStatus:
-				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['Rel', 'DQ', 'DNF', 'DNS', '']) )
-			elif col == self.iColWarning:
+				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['DQ', 'DNF', 'DNS', '']) )
+			elif col == self.iColWarning or col == self.iColRelegation:
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
 				attr.SetEditor( gridlib.GridCellBoolEditor() )
 				attr.SetRenderer( gridlib.GridCellBoolRenderer() )
@@ -655,8 +661,8 @@ class EventFinishOrder(EnablePanel):
 	def OnClick( self, event ):
 		row = event.GetRow()
 		col = event.GetCol()
-		if col == self.iColWarning:
-			self.grid.SetCellValue( row, col, u'1' if (self.grid.GetCellValue(row, col) or u'0') == u'0' else u'1' )
+		if col == self.iColWarning or col == self.iColRelegation:
+			self.grid.SetCellValue( row, col, u'0' if (self.grid.GetCellValue(row, col) or u'0')[:1] in u'1TtYy' else u'1' )
 		else:
 			event.Skip()
 		
@@ -704,9 +710,12 @@ class EventFinishOrder(EnablePanel):
 				bib = int(bib)
 			except:
 				continue
+			
 			status = self.grid.GetCellValue( row, self.iColStatus )
 			warning = self.grid.GetCellValue( row, self.iColWarning )
-			places.append( (bib, status, warning) )
+			relegation = self.grid.GetCellValue( row, self.iColRelegation )
+			
+			places.append( (bib, status, warning, relegation) )
 			
 			try:
 				t = Utils.StrToSeconds( self.grid.GetCellValue(row, iColTime) )

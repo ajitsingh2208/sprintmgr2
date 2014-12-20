@@ -674,7 +674,7 @@ def DoRandomSimulation( model = None ):
 		places = [c for c in e.composition if competition.state.inContention(c)]
 		v = (sum(state.labels[p].qualifyingTime for p in places) / float(len(places))) / 20.0
 		places.sort( key = lambda p: random.gauss(state.labels[p].qualifyingTime, v) )
-		start.setPlaces( [(state.labels[p].bib, '', '0') for p in places] )
+		start.setPlaces( [(state.labels[p].bib, '', '0', '0') for p in places] )
 		e.propagate()
 		competition.propagate()
 
