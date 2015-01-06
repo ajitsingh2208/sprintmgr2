@@ -171,6 +171,7 @@ class Results(wx.Panel):
 			
 			riders = sorted( model.riders, key = lambda r: r.keyQualifying() )
 			Utils.AdjustGridSize( self.grid, rowsRequired = len(riders), colsRequired = len(self.headerNames) )
+			Utils.SetGridCellBackgroundColour( self.grid, wx.WHITE )
 			self.setColNames()
 			starters = competition.starters
 			for row, r in enumerate(riders):
@@ -199,6 +200,8 @@ class Results(wx.Panel):
 			
 			results, dnfs, dqs = competition.getResults()
 			Utils.AdjustGridSize( self.grid, rowsRequired = len(model.riders), colsRequired = len(self.headerNames) )
+			Utils.SetGridCellBackgroundColour( self.grid, wx.WHITE )
+
 			self.setColNames()
 			for row, (classification, r) in enumerate(results):
 				writeCell = WriteCell( self.grid, row )
@@ -231,6 +234,8 @@ class Results(wx.Panel):
 			self.headerNames = [h for c, h in enumerate(self.headerNames) if c not in hideCols]
 			
 			Utils.AdjustGridSize( self.grid, rowsRequired = len(system.events), colsRequired = len(self.headerNames) )
+			Utils.SetGridCellBackgroundColour( self.grid, wx.WHITE )
+
 			self.setColNames()
 			state = competition.state
 			

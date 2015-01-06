@@ -173,6 +173,11 @@ def AdjustGridSize( grid, rowsRequired = None, colsRequired = None ):
 		elif d < 0:
 			grid.AppendCols( -d )
 			
+def SetGridCellBackgroundColour( grid, colour = wx.WHITE ):
+	for r in xrange(grid.GetNumberRows()):
+		for c in xrange(grid.GetNumberCols()):
+			grid.SetCellBackgroundColour( r, c, colour )
+
 def ChangeFontInChildren(win, font):
 	'''
 	Set font in given window and all its descendants.

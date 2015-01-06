@@ -91,3 +91,6 @@ print 'executable compressed.'
 
 shutil.copy( newExeName, r"c:\GoogleDrive\Downloads\Windows\SprintMgr"  )
 
+os.chdir( '..' )
+shutil.copy( 'SprintMgrTutorial.pdf', r"c:\GoogleDrive\Downloads\Windows\SprintMgr"  )
+

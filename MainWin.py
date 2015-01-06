@@ -1076,8 +1076,8 @@ def MainLoop():
 	
 	random.seed()
 
-	parser = OptionParser( usage = "usage: %prog [options] [EventFile.tp5]" )
-	parser.add_option("-f", "--file", dest="filename", help="event file", metavar="EventFile.tp5")
+	parser = OptionParser( usage = "usage: %prog [options] [EventFile.smr]" )
+	parser.add_option("-f", "--file", dest="filename", help="event file", metavar="EventFile.smr")
 	parser.add_option("-q", "--quiet", action="store_false", dest="verbose", default=True, help='hide splash screen')
 	parser.add_option("-r", "--regular", action="store_false", dest="fullScreen", default=True, help='regular size (not full screen)')
 	(options, args) = parser.parse_args()
@@ -1099,9 +1099,10 @@ def MainLoop():
 			app.RedirectStdio( redirectFileName )
 		except:
 			pass
-			
+	
 	Utils.writeLog( 'start: {}'.format(Version.AppVerName) )
-			
+	
+	# Create some sample data.
 	Model.model = SetDefaultData()
 	
 	# Configure the main window.
@@ -1110,7 +1111,6 @@ def MainLoop():
 	if options.fullScreen:
 		mainWin.Maximize( True )
 		
-	Model.model = SetDefaultData()
 	mainWin.refreshAll()
 	mainWin.CenterOnScreen()
 	mainWin.Show()
