@@ -2,40 +2,34 @@ from distutils.core import setup
 import os
 import shutil
 import zipfile
+import datetime
+import subprocess
 
-distDir = 'dist'
+distDir = os.path.join('dist','SprintMgr')
+distDirParent = os.path.dirname(distDir)
+if os.path.exists(distDirParent):
+	shutil.rmtree( distDirParent )
+if not os.path.exists( distDirParent ):
+	os.makedirs( distDirParent )
 
-googleDrive = r"c:\GoogleDrive\Downloads\Windows\CrossMgr"
+googleDrive = r"c:\GoogleDrive\Downloads\Windows\SprintMgr"
 if not os.path.exists(googleDrive):
-	googleDrive = r"C:\Users\Edward Sitarski\Google Drive\Downloads\Windows\CrossMgr"
-
-# Cleanup existing dll, pyd and exe files.  The old ones may not be needed, so it is best to clean these up.
-for f in os.listdir(distDir):
-	if f.endswith('.dll') or f.endswith('.pyd') or f.endswith('.exe'):
-		fname = os.path.join(distDir, f)
-		print 'deleting:', fname
-		os.remove( fname )
-		
-from Version import AppVerName
-def make_inno_version():
-	setup = {
-		'AppName':				AppVerName.split()[0],
-		'AppPublisher':			"Edward Sitarski",
-		'AppContact':			"Edward Sitarski",
-		'AppCopyright':			"Copyright (C) 2004-{} Edward Sitarski".format(datetime.date.today().year),
-		'AppVerName':			AppVerName,
-		'AppPublisherURL':		"http://www.sites.google.com/site/crossmgrsoftware/",
-		'AppUpdatesURL':		"http://www.sites.google.com/site/crossmgrsoftware/downloads/",
-		'VersionInfoVersion':	AppVerName.split()[1],
-	}
-	with open('inno_setup.txt', 'w') as f:
-		for k, v in setup.iteritems():
-			f.write( '{}={}\n'.format(k,v) )
-make_inno_version()
-
-cmd = '"' + inno + '" ' + 'CrossMgr.iss'
-print cmd
-subprocess.call( cmd, shell=True )
+	googleDrive = r"C:\Users\Edward Sitarski\Google Drive\Downloads\Windows\SprintMgr"
+	
+subprocess.call( [
+	'pyinstaller',
+	
+	'SprintMgr.pyw',
+	'--icon=images\SprintMgr.ico',
+	'--clean',
+	'--windowed',
+	'--noconfirm',
+	
+	'--exclude-module=tcl',
+	'--exclude-module=tk',
+	'--exclude-module=Tkinter',
+	'--exclude-module=_tkinter',
+] )
 
 # Copy additional dlls to distribution folder.
 wxHome = r'C:\Python27\Lib\site-packages\wx-2.8-msw-ansi\wx'
@@ -71,6 +65,23 @@ for drive in ['C', 'D']:
 	if os.path.exists( innoTest ):
 		inno = innoTest
 		break
+		
+from Version import AppVerName
+def make_inno_version():
+	setup = {
+		'AppName':				AppVerName.split()[0],
+		'AppPublisher':			"Edward Sitarski",
+		'AppContact':			"Edward Sitarski",
+		'AppCopyright':			"Copyright (C) 2004-{} Edward Sitarski".format(datetime.date.today().year),
+		'AppVerName':			AppVerName,
+		'AppPublisherURL':		"http://www.sites.google.com/site/crossmgrsoftware/",
+		'AppUpdatesURL':		"http://www.sites.google.com/site/crossmgrsoftware/downloads/",
+		'VersionInfoVersion':	AppVerName.split()[1],
+	}
+	with open('inno_setup.txt', 'w') as f:
+		for k, v in setup.iteritems():
+			f.write( '{}={}\n'.format(k,v) )
+make_inno_version()
 
 cmd = '"' + inno + '" ' + 'SprintMgr.iss'
 print cmd
@@ -105,8 +116,11 @@ z.write( newExeName )
 z.close()
 print 'executable compressed.'
 
-shutil.copy( newExeName, r"c:\GoogleDrive\Downloads\Windows\SprintMgr"  )
+shutil.copy( newZipName, googleDrive  )
 
+cmd = 'python virustotal_submit.py "{}"'.format(os.path.abspath(newExeName))
+print cmd
 os.chdir( '..' )
-shutil.copy( 'SprintMgrTutorial.pdf', r"c:\GoogleDrive\Downloads\Windows\SprintMgr"  )
+subprocess.call( cmd, shell=True )
+shutil.copy( 'virustotal.html', os.path.join(googleDrive, 'virustotal_v' + vNum + '.html') )
 
