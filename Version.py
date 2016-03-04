@@ -1,1 +1,1 @@
-AppVerName="SprintMgr 0.15"
+AppVerName="SprintMgr 1.1.0"
