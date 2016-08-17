@@ -215,7 +215,10 @@ def formatDate( date ):
 def StrToSeconds( s = '' ):
 	secs = 0.0
 	for f in s.strip().split(':'):
-		secs = secs * 60.0 + float(f)
+		if f:
+			secs = secs * 60.0 + float(f)
+		else:
+			secs *= 60.0
 	return secs
 	
 def SecondsToStr( secs, full = False ):

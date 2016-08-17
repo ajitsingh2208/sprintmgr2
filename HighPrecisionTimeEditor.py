@@ -10,8 +10,8 @@ class HighPrecisionTimeEditor(gridlib.PyGridCellEditor):
 		self.startValue = self.Empty
 		gridlib.PyGridCellEditor.__init__(self)
 		
-	def Create( self, parent, id = wx.ID_ANY, evtHandler = None ):
-		self._tc = HighPrecisionTimeEdit(parent, id, allow_none = False, style = wx.TE_PROCESS_ENTER)
+	def Create( self, parent, id=wx.ID_ANY, evtHandler=None ):
+		self._tc = HighPrecisionTimeEdit(parent, id, allow_none=False, style=wx.TE_PROCESS_ENTER)
 		self.SetControl( self._tc )
 		if evtHandler:
 			self._tc.PushEventHandler( evtHandler )
@@ -24,7 +24,8 @@ class HighPrecisionTimeEditor(gridlib.PyGridCellEditor):
 		v = self.startValue
 		v = Utils.SecondsToStr( Utils.StrToSeconds(v), full=True )
 		self._tc.SetValue( v )
-		self._tc.SetFocus()
+		self._tc.SetSelection(-1,-1)
+		wx.CallAfter( self._tc.SetFocus )
 		
 	def EndEdit( self, row, col, grid, value = None ):
 		changed = False

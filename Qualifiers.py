@@ -18,7 +18,7 @@ class Qualifiers(wx.Panel):
 		wx.Panel.__init__(self, parent)
  
 		font = GetFont()
-		self.title = wx.StaticText(self, wx.ID_ANY, "Enter each rider's qualifying time.")
+		self.title = wx.StaticText(self, wx.ID_ANY, "Enter each rider's qualifying time in hh:mm:ss.ddd format.  Use a colon ':' a space, or a dash '-' to separate hour, minute and seconds.")
 		self.title.SetFont( font )
 		
 		self.renumberButton = wx.Button( self, wx.ID_ANY, 'Renumber Bibs by Time' )
@@ -31,7 +31,7 @@ class Qualifiers(wx.Panel):
 		hs.Add( self.renumberButton, 0, flag=wx.ALL, border = 6 )
  
 		self.headerNames = ['Bib', 'Name', 'Team', 'Time']
-		self.iTime = self.headerNames.index( 'Time' )
+		self.iTime = next( i for i, n in enumerate(self.headerNames) if n.startswith( 'Time' ) )
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.DisableDragRowSize()

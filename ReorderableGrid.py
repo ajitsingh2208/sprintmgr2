@@ -225,17 +225,53 @@ class CornerReorderableGridLabelRenderer(glr.GridLabelRenderer):
 			x = rect.left + (rect.width - self._bmp.GetWidth()) / 2
 			y = rect.top + (rect.height - self._bmp.GetHeight()) / 2
 			dc.DrawBitmap(self._bmp, x, y, True)
-   
+
+class EnterHandlingGridMixin( object ):
+	def __init__(self):
+		self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
+
+	def OnKeyDown(self, evt):
+		r = self.GetGridCursorRow()
+		c = self.GetGridCursorCol()
+		
+		keycode = evt.GetKeyCode()
+		if keycode == wx.WXK_TAB:
+			self.DisableCellEditControl()
+		
+			if evt.ShiftDown():
+				if c > 0:
+					self.SetGridCursor( r, c-1 )
+			else:
+				if c < self.GetNumberCols() - 1:
+					self.SetGridCursor( r, c+1 )
+			
+			return
+		
+		if keycode != wx.WXK_RETURN:
+			evt.Skip()
+			return
+		
+		if evt.ControlDown():   # the edit control needs this key
+			evt.Skip()
+			return
+		
+		self.DisableCellEditControl()
+		
+		if r != self.GetNumberRows() - 1:
+			self.SetGridCursor( r + 1, c )
+			
 class ReorderableGrid(	gridlib.Grid,
 						ReorderableGridRowMixin,
-						KeyboardNavigationGridMixin,
+						#KeyboardNavigationGridMixin,
+						EnterHandlingGridMixin,
 						SaveEditWhenFocusChangesGridMixin,
 						glr.GridWithLabelRenderersMixin,
 						gae.GridAutoEditMixin ):
 	def __init__( self, parent, style = 0 ):
 		gridlib.Grid.__init__( self, parent, style=style )
 		ReorderableGridRowMixin.__init__( self )
-		KeyboardNavigationGridMixin.__init__( self )
+		#KeyboardNavigationGridMixin.__init__( self )
+		EnterHandlingGridMixin.__init__( self )
 		SaveEditWhenFocusChangesGridMixin.__init__( self )
 		glr.GridWithLabelRenderersMixin.__init__(self)
 		gae.GridAutoEditMixin.__init__(self)

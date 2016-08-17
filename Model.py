@@ -57,17 +57,17 @@ class Rider( object ):
 	@property
 	def short_name( self ):
 		if self.last_name and self.first_name:
-			return u'%s, %s.' % (self.last_name.upper(), self.first_name[:1])
+			return u'{}, {}.'.format(self.last_name.upper(), self.first_name[:1])
 		return self.last_name.upper() if self.last_name else self.first_name
 	
 	@property
 	def bib_short_name( self ):
-		return u'%d %s' % (self.bib, self.short_name)
+		return u'{} {}'.format(self.bib, self.short_name)
 	
 	@property
 	def long_name( self ):
 		n = self.full_name
-		return u'%s (%s)' % (n, self.team) if self.team else n
+		return u'{} ({})'.format(n, self.team) if self.team else n
 		
 	def __repr__( self ):
 		return u'{}'.format(self.bib)
@@ -88,10 +88,10 @@ class State( object ):
 		qt.sort()
 		qt = qt[:competition.starters]
 		for i, (t, iSeeding, rider) in enumerate(qt):
-			self.labels['N%d' % (i+1)] = rider
+			self.labels['N{}'.format(i+1)] = rider
 		# Set extra open spaces to make sure we have enough starters.
 		for i in xrange(len(qtIn), 64):
-			self.labels['N%d' % (i+1)] = self.OpenRider
+			self.labels['N{}'.format(i+1)] = self.OpenRider
 		self.OpenRider.qualifyingTime =  QualifyingTimeDefault + 1.0
 
 	def inContention( self, id ):
@@ -175,6 +175,8 @@ class Start( object ):
 					
 		state = event.competition.state
 		self.startPositions = [c for c in self.startPositions if state.inContention(c)]
+		if self.event.competition.isMTB:
+			self.startPositions.sort( key=lambda c: state.labels[c].bib )
 
 	def isHanging( self ):
 		''' Check if there are no results, and this is not a restart.  If so, this start was interrupted and needs to be removed. '''
@@ -368,8 +370,8 @@ class Event( object ):
 		remainingComposition = [c for c in self.composition if state.inContention(c)]
 		remainingOthers = self.others[:len(remainingComposition)-1]
 		def labName( id ):
-			return '%s=%-12s' % (id, state.labels[id].full_name) if id in state.labels else '%s' % id
-		s = '%s, Heat %d/%d  Start %d:  %s => %s %s' % (
+			return '{}={:-12s}'.format(id, state.labels[id].full_name) if id in state.labels else '{}'.format(id)
+		s = '{}, Heat {}/{}  Start {}:  {} => {} {}'.format(
 			self.system.name,
 			self.getHeat(), self.heatsMax, len(self.starts),
 			' '.join(labName(c) for c in remainingComposition),
@@ -381,31 +383,31 @@ class Event( object ):
 	
 	@property
 	def multi_line_name( self ):
-		return '%s%s\nHeat %d/%d' % ('"%s" ' % self.tournament.name if self.tournament.name else '', self.system.name, self.getHeat(), self.heatsMax)
+		return '{}{}\nHeat {}/{}'.format('"{}" '.format(self.tournament.name) if self.tournament.name else '', self.system.name, self.getHeat(), self.heatsMax)
 		
 	@property
 	def multi_line_bibs( self ):
 		state = self.competition.state
 		remainingComposition = [c for c in self.composition if state.inContention(c)]
-		return '\n'.join((str(state.labels[c].bib)) for c in remainingComposition)
+		return u'\n'.join((str(state.labels[c].bib)) for c in remainingComposition)
 		
 	@property
 	def multi_line_rider_names( self ):
 		state = self.competition.state
 		remainingComposition = [c for c in self.composition if state.inContention(c)]
-		return '\n'.join(state.labels[c].full_name for c in remainingComposition)
+		return u'\n'.join(state.labels[c].full_name for c in remainingComposition)
 		
 	@property
 	def multi_line_rider_teams( self ):
 		state = self.competition.state
 		remainingComposition = [c for c in self.composition if state.inContention(c)]
-		return '\n'.join(state.labels[c].team for c in remainingComposition)
+		return u'\n'.join(state.labels[c].team for c in remainingComposition)
 		
 	@property
 	def multi_line_inlabels( self ):
 		state = self.competition.state
 		remainingComposition = [c for c in self.composition if state.inContention(c)]
-		return '\n'.join( remainingComposition )
+		return u'\n'.join( remainingComposition )
 	
 	@property
 	def multi_line_outlabels( self ):
@@ -413,7 +415,7 @@ class Event( object ):
 		remainingComposition = [c for c in self.composition if state.inContention(c)]
 		outlabels = [self.winner]
 		outlabels.extend( self.others[0:len(remainingComposition)-1] )
-		return '\n'.join( outlabels )
+		return u'\n'.join( outlabels )
 	
 	def getRepr( self ):
 		return self.__repr__()
@@ -538,16 +540,16 @@ class Competition( object ):
 			e.tournament = t
 			s.tournament = t
 			for c in e.composition:
-				assert c not in inLabels, '%s-%s-%s c: %s, outLabels=%s' % (e.competition.name, e.tournament.name, e.system.name, c, ','.join( sorted(outLabels) ))
+				assert c not in inLabels, '{}-{}-{} c: {}, outLabels={}'.format(e.competition.name, e.tournament.name, e.system.name, c, ','.join( sorted(outLabels) ))
 				inLabels.add( c )
 				if c.startswith('N'):
 					self.starters += 1
 						
-			assert e.winner not in outLabels, '%s-%s-%s winner: %s, outLabels=%s' % (
+			assert e.winner not in outLabels, '{}-{}-{} winner: {}, outLabels={}'.format(
 				e.competition.name, e.tournament.name, e.system.name, e.winner, ','.join( sorted(outLabels) ))
 			outLabels.add( e.winner )
 			for c in e.others:
-				assert c not in outLabels, '%s-%s-%s other label: %s is already in outLabels=%s' % (
+				assert c not in outLabels, '{}-{}-{} other label: {} is already in outLabels={}'.format(
 					e.competition.name, e.tournament.name, e.system.name, c, ','.join( outLabels ))
 				outLabels.add( c )
 				
@@ -609,7 +611,7 @@ class Competition( object ):
 	def __repr__( self ):
 		out = ['']
 		for t, s, e in self.allEvents():
-			out.append( ' '.join( [t.name, s.name, '[%s]' % ','.join(e.composition), ' --> ', e.winner, '[%s]' % ','.join(e.others)] ) )
+			out.append( ' '.join( [t.name, s.name, '[{}]'.format(','.join(e.composition)), ' --> ', e.winner, '[{}]'.format(','.join(e.others))] ) )
 		return '\n'.join( out )
 	
 	def fixHangingStarts( self ):
@@ -628,7 +630,7 @@ class Competition( object ):
 			if not success:
 				break
 		labels = self.state.labels
-		return [ labels.get('%dR' % (r+1), None) for r in xrange(self.starters) ]
+		return [ labels.get('{}R'.format(r+1), None) for r in xrange(self.starters) ]
 
 	def getRiderStates( self ):
 		riderState = defaultdict( set )
@@ -659,7 +661,7 @@ class Competition( object ):
 			results = [None] * self.starters
 			for i in xrange(self.starters):
 				try:
-					results[i] = self.state.labels['%dR' % (i+1)]
+					results[i] = self.state.labels['{}R'.format(i+1)]
 				except KeyError:
 					pass
 
