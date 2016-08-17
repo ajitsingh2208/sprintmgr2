@@ -25,14 +25,10 @@ class TimeCharValidator(wx.PyValidator):
 
 	def OnChar(self, event):
 		key = event.GetKeyCode()
-		if key < wx.WXK_SPACE or key == wx.WXK_DELETE or key > 255:
+		if (	key < wx.WXK_SPACE or key == wx.WXK_DELETE or key > 255 or
+				chr(key) in validChars ):
 			event.Skip()
 			return
-		if chr(key) in validChars:
-			event.Skip()
-			return
-		if not wx.Validator_IsSilent():
-			wx.Bell()
 
 class HighPrecisionTimeEdit( wx.TextCtrl ):
 	def __init__( self, parent, id=wx.ID_ANY, seconds=None, allow_none=False, style=0 ):

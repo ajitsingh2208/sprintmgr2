@@ -335,9 +335,9 @@ class EventPosition(EnablePanel):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
 			attr.SetReadOnly( True )
-			if self.headerNames[col] == 'Bib':
+			if self.headerNames[col].startswith('Bib'):
 				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_TOP );
-			elif self.headerNames[col] == 'Status':
+			elif self.headerNames[col].startswith('Status'):
 				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['DNS', '']) )
 				attr.SetReadOnly( False )
 			self.grid.SetColAttr( col, attr )

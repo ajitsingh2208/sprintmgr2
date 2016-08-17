@@ -30,8 +30,9 @@ class Qualifiers(wx.Panel):
 		hs.AddStretchSpacer()
 		hs.Add( self.renumberButton, 0, flag=wx.ALL, border = 6 )
  
-		self.headerNames = ['Bib', 'Name', 'Team', 'Time']
+		self.headerNames = ['Bib', 'Name', 'Team', 'Time', 'Status']
 		self.iTime = next( i for i, n in enumerate(self.headerNames) if n.startswith( 'Time' ) )
+		self.iStatus = next( i for i, n in enumerate(self.headerNames) if n.startswith( 'Status' ) )
 		
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.DisableDragRowSize()
@@ -42,13 +43,16 @@ class Qualifiers(wx.Panel):
 
 		# Set specialized editors for appropriate columns.
 		self.grid.SetLabelFont( font )
-		timeCol = self.grid.GetNumberCols() - 1
 		for col in xrange(self.grid.GetNumberCols()):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
-			if col == timeCol:
+			if col == self.iTime:
 				attr.SetEditor( HighPrecisionTimeEditor() )
 				attr.SetAlignment( wx.ALIGN_RIGHT, wx.ALIGN_CENTRE )
+			elif col == self.iStatus:
+				attr.SetEditor( gridlib.GridCellChoiceEditor(choices = ['', 'DNQ']) )
+				attr.SetReadOnly( False )
+				attr.SetAlignment( wx.ALIGN_CENTRE, wx.ALIGN_CENTRE )
 			else:
 				if col == 0:
 					attr.SetRenderer( gridlib.GridCellNumberRenderer() )
@@ -93,7 +97,7 @@ class Qualifiers(wx.Panel):
 		
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(riders) )
 		for row, r in enumerate(riders):
-			for col, value in enumerate([str(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
+			for col, value in enumerate([unicode(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
 				self.grid.SetCellValue( row, col, value )
 				
 		# Fix up the column and row sizes.
@@ -120,8 +124,12 @@ class Qualifiers(wx.Panel):
 				qt = Model.QualifyingTimeDefault
 				
 			qt = min( qt, Model.QualifyingTimeDefault )
-			if riders[row].qualifyingTime != qt:
-				riders[row].qualifyingTime = qt
+			status = self.grid.GetCellValue( row, self.iStatus ).strip()
+			
+			rider = riders[row]
+			if rider.qualifyingTime != qt or rider.status != status:
+				rider.qualifyingTime = qt
+				rider.status = status
 				model.setChanged( True )
 		
 	def commit( self ):
@@ -141,9 +149,9 @@ class Qualifiers(wx.Panel):
 		self.setQT()
 		
 		model = Model.model
-		riders = sorted( model.riders, key = lambda x: x.qualifyingTime )
-		for r, rider in enumerate(riders):
-			rider.bib = r+1
+		riders = sorted( model.riders, key = lambda x: x.keyQualifying() )
+		for r, rider in enumerate(riders, 1):
+			rider.bib = r
 		
 		wx.CallAfter( self.refresh )
 		

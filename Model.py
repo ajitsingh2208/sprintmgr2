@@ -14,7 +14,13 @@ SprintFinalCompetitionTime = 3*60.0
 KeirinCompetitionTime = 5*60.0
 
 class Rider( object ):
-	def __init__( self, bib, first_name = '', last_name = '', team = '', team_code = '', license = '', qualifyingTime = QualifyingTimeDefault ):
+	status = ''
+	
+	def __init__( self, bib,
+			first_name = '', last_name = '', team = '', team_code = '', license = '',
+			qualifyingTime = QualifyingTimeDefault,
+			status = ''
+		):
 		self.bib = int(bib)
 		self.first_name = first_name
 		self.last_name = last_name
@@ -23,6 +29,7 @@ class Rider( object ):
 		self.license = license
 		self.qualifyingTime = float(qualifyingTime)
 		self.iSeeding = 0
+		self.status = status
 		
 	def isOpen( self ):
 		return self.last_name == 'OPEN'
@@ -37,7 +44,7 @@ class Rider( object ):
 		return tuple( getattr(self, a) for a in ('bib', 'first_name', 'last_name', 'team', 'team_code', 'license', 'qualifyingTime') )
 	
 	def keyQualifying( self ):
-		return (self.qualifyingTime, self.iSeeding)
+		return (self.status, self.qualifyingTime, self.iSeeding)
 	
 	def keyDataFields( self ):
 		return tuple( getattr(self, a) for a in ('bib', 'first_name', 'last_name', 'team', 'team_code', 'license') )
@@ -84,13 +91,11 @@ class State( object ):
 	def setQualifyingTimes( self, qtIn, competition ):
 		''' Expect qtIn to be of the form [(rider1, t1), (rider2, t2), ...]'''
 		self.labels = {}
-		qt = [(t, rider.iSeeding, rider) for rider, t in qtIn]
-		qt.sort()
-		qt = qt[:competition.starters]
+		qt = sorted( (t, rider.iSeeding, rider) for rider, t in qtIn if rider.status != 'DNQ' )[:competition.starters]
 		for i, (t, iSeeding, rider) in enumerate(qt):
 			self.labels['N{}'.format(i+1)] = rider
 		# Set extra open spaces to make sure we have enough starters.
-		for i in xrange(len(qtIn), 64):
+		for i in xrange(len(qtIn), 128):
 			self.labels['N{}'.format(i+1)] = self.OpenRider
 		self.OpenRider.qualifyingTime =  QualifyingTimeDefault + 1.0
 

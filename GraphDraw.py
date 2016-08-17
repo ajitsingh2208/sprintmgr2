@@ -112,7 +112,7 @@ class Graph( wx.PyControl ):
 			
 			if tournament.name:
 				grid[col].extend( [{}] * (rowStart - len(grid[col])) )
-				grid[col].extend( [{'title': u'Tournament "%s"' % tournament.name}, {}] )
+				grid[col].extend( [{'title': u'Tournament "{}"'.format(tournament.name)}, {}] )
 				rowStart += 2
 			for s, system in enumerate(tournament.systems):
 			
@@ -171,7 +171,7 @@ class Graph( wx.PyControl ):
 				if c == 0:
 					col.insert( 0, {'title':model.competition_name} )
 				elif c == 1:
-					col.insert( 0, {'title':model.date.strftime('%Y/%m/%d')} )
+					col.insert( 0, {'title':model.date.strftime('%Y-%m-%d')} )
 				else:
 					col.insert( 0, {} )
 				col.insert( 1, {} )
@@ -179,7 +179,7 @@ class Graph( wx.PyControl ):
 		inCR = defaultdict( list )
 		for c, col in enumerate(grid):
 			for r, v in enumerate(col):
-				if 'rider' in v and v['rider'].bib:
+				if 'rider' in v and v['rider'] and v['rider'].bib:
 					inCR[v['rider']].append( (c, r) )
 					
 		def getToCR( cFrom, rider ):
@@ -515,6 +515,10 @@ if __name__ == "__main__":
 	#Model.model = SetDefaultData('Keirin 22-28')
 	#Model.model = SetDefaultData('Keirin 29-42')
 	#Model.model = SetDefaultData('Keirin 12-14')
+	for i, r in enumerate(Model.model.riders):
+		r.status = 'DNQ'
+		if i > 12:
+			break
 	DoRandomSimulation()
 	frame = GraphDrawFrame()
 	app.MainLoop()

@@ -234,17 +234,21 @@ class EnterHandlingGridMixin( object ):
 		r = self.GetGridCursorRow()
 		c = self.GetGridCursorCol()
 		
-		keycode = evt.GetKeyCode()
+		keycode = evt.GetKeyCode()		
 		if keycode == wx.WXK_TAB:
-			self.DisableCellEditControl()
-		
+			self.DisableCellEditControl()		
 			if evt.ShiftDown():
 				if c > 0:
 					self.SetGridCursor( r, c-1 )
 			else:
 				if c < self.GetNumberCols() - 1:
 					self.SetGridCursor( r, c+1 )
+			return
 			
+		if keycode == wx.WXK_UP:
+			self.DisableCellEditControl()
+			if r != 0:
+				self.SetGridCursor( r-1, c )
 			return
 		
 		if keycode != wx.WXK_RETURN:
@@ -256,9 +260,8 @@ class EnterHandlingGridMixin( object ):
 			return
 		
 		self.DisableCellEditControl()
-		
 		if r != self.GetNumberRows() - 1:
-			self.SetGridCursor( r + 1, c )
+			self.SetGridCursor( r+1, c )
 			
 class ReorderableGrid(	gridlib.Grid,
 						ReorderableGridRowMixin,

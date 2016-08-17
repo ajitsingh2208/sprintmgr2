@@ -165,17 +165,22 @@ class Results(wx.Panel):
 		resultName = self.showResults.GetStringSelection()
 		
 		if 'Qualifiers' in resultName:
+			starters = competition.starters
+			
 			self.headerNames = [u'Pos', u'Bib', u'Name', u'Team', u'Time']
 			hideCols = self.getHideCols( self.headerNames )
 			self.headerNames = [h for c, h in enumerate(self.headerNames) if c not in hideCols]
 			
 			riders = sorted( model.riders, key = lambda r: r.keyQualifying() )
+			for row, r in enumerate(riders):
+				if row >= starters or r.status == 'DNQ':
+					riders[row:] = sorted( riders[row:], key=lambda r: r.keyQualifying()[1:] )
+					break
 			Utils.AdjustGridSize( self.grid, rowsRequired = len(riders), colsRequired = len(self.headerNames) )
 			Utils.SetGridCellBackgroundColour( self.grid, wx.WHITE )
 			self.setColNames()
-			starters = competition.starters
 			for row, r in enumerate(riders):
-				if row < starters:
+				if row < starters and r.status != 'DNQ':
 					pos = unicode(row + 1)
 					for col in xrange(self.grid.GetNumberCols()):
 						self.grid.SetCellBackgroundColour( row, col, wx.WHITE )
