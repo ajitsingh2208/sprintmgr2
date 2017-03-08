@@ -684,9 +684,7 @@ class EventFinishOrder(EnablePanel):
 		newBibOrder = [b for b in newBibOrder if b in oldBibs]
 		
 		newBibs = set( newBibOrder )
-		for b in oldBibOrder:
-			if b not in newBibs:
-				newBibOrder.append( b )
+		newBibOrder.extend( b for b in oldBibOrder if b not in newBibs )
 		
 		for row, bib in enumerate(newBibOrder):
 			if oldBibOrder[row] != bib:
