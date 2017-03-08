@@ -1,6 +1,7 @@
 import wx
 import wx.grid as gridlib
 
+import re
 import os
 import sys
 import Utils
@@ -586,7 +587,7 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 class EventFinishOrder(EnablePanel):
 	def __init__(self, parent):
 		EnablePanel.__init__(self, parent)
-		self.box = wx.StaticBox( self, label='Result' )
+		self.box = wx.StaticBox( self, label='Result (right-click to enter Bib numbers from keyboard)' )
 		boxSizer = wx.StaticBoxSizer( self.box, wx.HORIZONTAL )
 		
 		self.event = None
@@ -614,6 +615,7 @@ class EventFinishOrder(EnablePanel):
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )
 		self.grid.Bind( wx.grid.EVT_GRID_CELL_LEFT_CLICK, self.OnClick )
+		self.grid.Bind( wx.grid.EVT_GRID_CELL_RIGHT_CLICK, self.OnRightClick )
 		
 		font = GetFont()
 		self.grid.SetLabelFont( font )
@@ -665,7 +667,39 @@ class EventFinishOrder(EnablePanel):
 			self.grid.SetCellValue( row, col, u'0' if (self.grid.GetCellValue(row, col) or u'0')[:1] in u'1TtYy' else u'1' )
 		else:
 			event.Skip()
+	
+	def OnRightClick( self, event ):
+		ted = wx.TextEntryDialog( self, 'Enter Bib Numbers separated by space or comma', 'Enter Bibs' )
+		ret = ted.ShowModal()
+		v = ted.GetValue()
+		ted.Destroy()
+		if ret != wx.ID_OK:
+			return
 		
+		v = re.sub( r'[^\d]', u' ', v )
+		newBibOrder = [int(f) for f in v.split()]
+
+		oldBibOrder = []
+		for row in xrange(self.grid.GetNumberRows()):
+			try:
+				oldBibOrder.append( int(self.grid.GetCellValue( row, 0 )) )
+			except:
+				continue
+				
+		oldBibs = set(oldBibOrder)
+		newBibOrder = [b for b in newBibOrder if b in oldBibs]
+		
+		newBibs = set( newBibOrder )
+		for b in oldBibs:
+			if b not in newBibs:
+				newBibOrder.append( b )
+				
+		for row, bib in enumerate(newBibOrder):
+			if oldBibOrder[row] != bib:
+				i = oldBibOrder.index( bib )
+				oldBibOrder[i], oldBibOrder[row] = oldBibOrder[row], oldBibOrder[i]
+				Utils.SwapGridRows( self.grid, row, i )
+	
 	def setEvent( self, event ):
 		self.event = event
 	
