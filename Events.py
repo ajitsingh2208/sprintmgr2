@@ -676,24 +676,18 @@ class EventFinishOrder(EnablePanel):
 		if ret != wx.ID_OK:
 			return
 		
+		oldBibOrder = [int(self.grid.GetCellValue(row, 0)) for row in xrange(self.grid.GetNumberRows())]				
+		oldBibs = set( oldBibOrder )
+		
 		v = re.sub( r'[^\d]', u' ', v )
 		newBibOrder = [int(f) for f in v.split()]
-
-		oldBibOrder = []
-		for row in xrange(self.grid.GetNumberRows()):
-			try:
-				oldBibOrder.append( int(self.grid.GetCellValue( row, 0 )) )
-			except:
-				continue
-				
-		oldBibs = set(oldBibOrder)
 		newBibOrder = [b for b in newBibOrder if b in oldBibs]
 		
 		newBibs = set( newBibOrder )
-		for b in oldBibs:
+		for b in oldBibOrder:
 			if b not in newBibs:
 				newBibOrder.append( b )
-				
+		
 		for row, bib in enumerate(newBibOrder):
 			if oldBibOrder[row] != bib:
 				i = oldBibOrder.index( bib )
