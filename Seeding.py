@@ -42,7 +42,7 @@ class Seeding(wx.Panel):
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.DisableDragRowSize()
 		self.grid.SetRowLabelSize( 64 )
-		self.grid.CreateGrid( 56, len(self.headerNames) )
+		self.grid.CreateGrid( 200, len(self.headerNames) )
 		self.setColNames()
 
 		# Set specialized editors for appropriate columns.

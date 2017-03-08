@@ -417,6 +417,7 @@ def getCompetitions():
 			])
 		])
 	)
+	'''
 	competitions.append(
 		Competition( 'Track: Keirin 50-56', [
 			Tournament( '', [
@@ -463,6 +464,7 @@ def getCompetitions():
 			])
 		])
 	)
+	'''
 
 	#-----------------------------------------------------------------------------------------
 	competitions.append(
@@ -637,6 +639,49 @@ def getCompetitions():
 				system.name = 'Round %d' % (int(system.name.split()[1]) - 1)
 		competitions.append( fcX )
 	
+	#-----------------------------------------------------------------------------------------
+	def genN( iStart, iEnd, stride=1 ):
+		return ' '.join( 'N{}'.format(i) for i in xrange(iStart, iEnd+1, stride) )
+	
+	def gen( suffix, iStart, iEnd, stride=1 ):
+		return ' '.join( '{}{}'.format(i, suffix) for i in xrange(iStart, iEnd+1, stride) )
+	
+	competitions.append(
+		Competition( 'Track: Track Endurance Eliminator', [
+			Tournament( '', [
+				System( 'Round 1', [
+					Event( genN(1,96,4) + ' -> ' + gen('B', 1,15) + ' ' +  gen('RepA', 1, 9), 1 ),
+					Event( genN(2,96,4) + ' -> ' + gen('B',16,30) + ' ' +  gen('RepA',10,18), 1 ),
+					Event( genN(3,96,4) + ' -> ' + gen('B',31,45) + ' ' +  gen('RepA',19,27), 1 ),
+					Event( genN(4,96,4) + ' -> ' + gen('B',46,60) + ' ' +  gen('RepA',28,36), 1 ),
+				]),
+				System( 'Repechage A', [
+					Event( gen('RepA', 1, 9) + ' ' +  gen('RepA',19,27) + ' -> ' + gen('B',61,66), 1 ),
+					Event( gen('RepA',10,18) + ' ' +  gen('RepA',28,36) + ' -> ' + gen('B',67,72), 1 ),
+				]),
+				System( 'Round 2', [
+					Event( gen('B',1,72,3) + ' -> ' + gen('C', 1, 8) + ' ' +  gen('RepB', 1,16), 1 ),
+					Event( gen('B',2,72,3) + ' -> ' + gen('C', 9,16) + ' ' +  gen('RepB',17,32), 1 ),
+					Event( gen('B',3,72,3) + ' -> ' + gen('C',17,24) + ' ' +  gen('RepB',33,48), 1 ),
+				]),
+				System( 'Repechage B', [
+					Event( gen('RepB', 1,16,2) + ' ' + gen('RepB',17,32,2) +                              ' -> ' + gen('C',25,30), 1 ),
+					Event( gen('RepB', 2, 8,2) + ' ' + gen('RepB',18,24,2) + ' ' +  gen('RepB',33,48,2) + ' -> ' + gen('C',31,36), 1 ),
+					Event( gen('RepB',10,16,2) + ' ' + gen('RepB',26,32,2) + ' ' +  gen('RepB',34,48,2) + ' -> ' + gen('C',37,42), 1 ),
+				]),
+				System( 'Semi Finals', [
+					Event( gen('C',1,42,2) + ' -> ' + gen('D', 1,10) + ' ' + gen('RepC', 1,11), 1 ),
+					Event( gen('C',2,42,2) + ' -> ' + gen('D',11,20) + ' ' + gen('RepC',12,22), 1 ),
+				]),
+				System( 'Repechage C', [
+					Event( gen('RepC', 1,22) + ' -> ' + gen('D', 21,24), 1 ),
+				]),
+				System( 'Finals', [
+					Event( gen('D',1,24) + ' -> ' + gen('R',1,24), 1 ),
+				]),
+			])
+		]),
+	)
 	return competitions
 
 def SetDefaultData( name = None, random = False ):

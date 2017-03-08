@@ -72,6 +72,10 @@ def getHeaderBitmap():
 	return wx.Bitmap( os.path.join(Utils.getImageFolder(), 'SprintMgr.png'), wx.BITMAP_TYPE_PNG )
 
 def writeHtmlHeader( buf, title ):
+	buf.write( '<style>\n' )
+	buf.write( 'td { vertical-align: top; }\n')
+	buf.write( 'th { vertical-align: top; }\n')
+	buf.write( '</style>\n')
 	with tag(buf, 'table', {'class': 'TitleTable'} ):
 		with tag(buf, 'tr'):
 			with tag(buf, 'td', dict(valign='top')):

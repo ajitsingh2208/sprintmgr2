@@ -114,7 +114,7 @@ class Chart(wx.Panel):
 					
 					writeCell( unicode(i+1) )
 					writeCell( unicode(event.heatsMax) )
-					writeCell( u'\n'.join(event.composition) )
+					writeCell( u'\n'.join(event.composition).replace(u'\n',u' ({})\n'.format(len(event.composition)),1) )
 					
 					riders = [state.labels.get(c, None) for c in event.composition]
 					writeCell( u'\n'.join([unicode(rider.bib if rider.bib else u'') if rider else '' for rider in riders]) )
@@ -130,7 +130,7 @@ class Chart(wx.Panel):
 							writeCell( u'' )
 					
 					out = [event.winner] + event.others
-					writeCell( u'\n'.join(out) )
+					writeCell( u'\n'.join(out).replace(u'\n',u' ({})\n'.format(len(out)),1) )
 					riders = [state.labels.get(c, None) for c in out]
 					writeCell( u'\n'.join([unicode(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowNames', True):

@@ -557,6 +557,8 @@ class Competition( object ):
 				assert c not in outLabels, '{}-{}-{} other label: {} is already in outLabels={}'.format(
 					e.competition.name, e.tournament.name, e.system.name, c, ','.join( outLabels ))
 				outLabels.add( c )
+			assert len(outLabels) <= len(inLabels), '{}-{}-{} len(outLabels)={} exceeds len(inLabels)={}\n    {}\n    {}'.format(
+					e.competition.name, e.tournament.name, e.system.name, len(outLabels), len(inLabels), ','.join(inLabels), ','.join(outLabels) )
 				
 		# Assign indexes to each component for sorting purposes.
 		for i, tournament in enumerate(self.tournaments):
