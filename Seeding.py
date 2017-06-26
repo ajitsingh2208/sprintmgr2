@@ -19,7 +19,7 @@ class Seeding(wx.Panel):
 	def __init__(self, parent):
 		wx.Panel.__init__(self, parent)
  
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = wx.Font( (0,FontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL )
 		
 		self.title = wx.StaticText(self, wx.ID_ANY, u"Seeding" + u':')
 		self.title.SetFont( font )

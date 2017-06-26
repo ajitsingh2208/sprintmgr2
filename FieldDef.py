@@ -73,8 +73,8 @@ class FieldDef( object ):
 			self.editCtrl.Bind( wx.EVT_TEXT, self.onChanged )
 			
 		elif self.type == FieldDef.DateType:
-			self.editCtrl = wx.DatePickerCtrl( parent, wx.ID_ANY, style = wx.DP_DROPDOWN | wx.DP_SHOWCENTURY, size=(120,-1))
-			self.editCtrl.Bind( wx.EVT_DATE_CHANGED, self.onChanged )
+			self.editCtrl = wx.adv.DatePickerCtrl( parent, wx.ID_ANY, style = wx.adv.DP_DROPDOWN | wx.adv.DP_SHOWCENTURY, size=(120,-1))
+			self.editCtrl.Bind( wx.adv.EVT_DATE_CHANGED, self.onChanged )
 			
 		elif self.type == FieldDef.TimeType:
 			self.editCtrl = TimeCtrl( parent, wx.ID_ANY, format = '24HHMM', displaySeconds = False, useFixedWidthFont = False )

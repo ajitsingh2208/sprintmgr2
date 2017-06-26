@@ -19,7 +19,7 @@ class Results(wx.Panel):
 		"""Constructor"""
 		wx.Panel.__init__(self, parent)
  
-		self.font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		self.font = wx.Font( (0,FontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL )
 		
 		self.showResultsLabel = wx.StaticText( self, wx.ID_ANY, u'Show:' )
 		self.showResultsLabel.SetFont( self.font )

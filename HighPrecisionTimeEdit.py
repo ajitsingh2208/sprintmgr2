@@ -6,7 +6,7 @@ import Utils
 validChars = set( c for c in '0123456789:-. ' )
 reRepeatingDecimals = re.compile( r'\.+' )
 reNonTimeChars = re.compile( r'[^-0123456789:. ]*' )
-class TimeCharValidator(wx.PyValidator):
+class TimeCharValidator(wx.Validator):
 	def __init__(self):
 		super(TimeCharValidator, self).__init__()
 		self.Bind(wx.EVT_CHAR, self.OnChar)

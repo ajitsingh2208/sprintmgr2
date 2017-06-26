@@ -26,14 +26,14 @@ font = None
 def GetFont():
 	global font
 	if font is None:
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = wx.Font( (0,FontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL )
 	return font
 
 boldFont = None
 def GetBoldFont():
 	global boldFont
 	if boldFont is None:
-		boldFont = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_BOLD )
+		boldFont = wx.Font( (0,FontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD )
 	return boldFont
 
 ActiveBackgroundColour = wx.Colour( 170, 255, 170 )
@@ -74,7 +74,7 @@ def EnableBar( parent ):
 class RestartDialog( wx.Dialog ):
 	def __init__( self, parent, id = wx.ID_ANY ):
 		wx.Dialog.__init__( self, parent, id, "Restart",
-						style=wx.DEFAULT_DIALOG_STYLE|wx.THICK_FRAME|wx.TAB_TRAVERSAL )
+						style=wx.DEFAULT_DIALOG_STYLE|wx.TAB_TRAVERSAL )
 						
 		font = GetFont()
 		
@@ -225,7 +225,7 @@ class EventSelect(EnablePanel):
 		self.grid.CreateGrid( 0, len(self.headerNames) )
 		self.grid.EnableReorderRows( False )
 		self.grid.SetRowLabelSize( 40 )
-		self.grid.SetSelectionMode( wx.grid.Grid.SelectRows  )
+		self.grid.SetSelectionMode( gridlib.Grid.GridSelectRows  )
 		
 		font = GetFont()
 		self.grid.SetLabelFont( font )
@@ -302,7 +302,7 @@ class EventPosition(EnablePanel):
 		
 		self.drawLotsBitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'dice.png'), wx.BITMAP_TYPE_PNG )
 		self.drawLotsGreyBitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'dice_grey.png'), wx.BITMAP_TYPE_PNG )
-		self.emptyBitmap = wx.EmptyBitmap( self.drawLotsBitmap.GetWidth(), self.drawLotsBitmap.GetHeight(), self.drawLotsBitmap.GetDepth() )
+		self.emptyBitmap = wx.Bitmap( self.drawLotsBitmap.GetWidth(), self.drawLotsBitmap.GetHeight(), self.drawLotsBitmap.GetDepth() )
 		
 		dc = wx.MemoryDC()
 		dc.SelectObject(self.emptyBitmap)
@@ -328,7 +328,7 @@ class EventPosition(EnablePanel):
 		self.grid = ReorderableGrid( self, style = wx.BORDER_SUNKEN )
 		self.grid.CreateGrid( 4, len(self.headerNames) )
 		
-		font = wx.FontFromPixelSize( wx.Size(0,FontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL )
+		font = wx.Font( (0,FontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL )
 		self.grid.SetLabelFont( font )
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
@@ -348,7 +348,7 @@ class EventPosition(EnablePanel):
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetCellValue( 0, col, '' )						# Remove the labels.
 		
-		self.drawLotsDisplay = wx.StaticBitmap( self, bitmap=self.drawLotsBitmap )
+		self.drawLotsDisplay = wx.StaticBitmap( self, label=self.drawLotsBitmap )
 		self.drawLotsDisplay.SetToolTip( wx.ToolTip( u'\n'.join([
 			u"Dice are active when riders need to draw lots to select their positions.",
 			u"Dice are inactive when riders' start positions are known.",
@@ -493,10 +493,10 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		font = GetFont()
 		
 		bitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'checkered_flag_wavy.png'), wx.BITMAP_TYPE_PNG )
-		flagBitmap = wx.StaticBitmap( self, bitmap=bitmap )
+		flagBitmap = wx.StaticBitmap( self, label=bitmap )
 		
 		title = wx.StaticText(self, label='Confirm Event Result' )
-		title.SetFont( wx.FontFromPixelSize(wx.Size(0,FontSize*1.5), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL) )
+		title.SetFont( wx.Font((0,int(FontSize*1.5)), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL) )
 		
 		hsTitle = wx.BoxSizer( wx.HORIZONTAL )
 		hsTitle.Add( flagBitmap, 0, flag=wx.EXPAND|wx.ALL, border = 4 )

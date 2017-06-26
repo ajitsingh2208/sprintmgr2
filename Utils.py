@@ -15,23 +15,7 @@ def initTranslation():
 		
 initTranslation()
 
-#-----------------------------------------------------------------------
-# Monkey-patch font so we always fetch a default font face.
-#
 FontFace = 'Arial'
-FontFromPixelSize = wx.FontFromPixelSize
-def FontFromPixelSizeFontFace( *args, **kwargs ):
-	if 'face' not in kwargs:
-		kwargs['face'] = FontFace
-	return FontFromPixelSize( *args, **kwargs )
-wx.FontFromPixelSize = FontFromPixelSizeFontFace
-
-Font = wx.Font
-def FontFontFace( *args, **kwargs ):
-	if 'face' not in kwargs:
-		kwargs['face'] = FontFace
-	return Font( *args, **kwargs )
-wx.Font = FontFontFace
 
 try:
 	from win32com.shell import shell, shellcon

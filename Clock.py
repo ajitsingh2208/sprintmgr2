@@ -17,7 +17,7 @@ def GetPen( colour=wx.BLACK, cap=wx.CAP_ROUND, join=wx.JOIN_ROUND, width=1 ):
 	pen.SetJoin( join )
 	return pen
 
-class Clock(wx.PyControl):
+class Clock(wx.Control):
 	def __init__(self, parent, id=wx.ID_ANY, pos=wx.DefaultPosition,
 				size=wx.DefaultSize, style=wx.NO_BORDER, validator=wx.DefaultValidator,
 				name="Clock", checkFunc=None ):
@@ -39,7 +39,7 @@ class Clock(wx.PyControl):
 		# to be overridden in Python derived class. For StatusBar, we
 		# basically need to override DoGetBestSize and AcceptsFocusFromKeyboard
 		
-		wx.PyControl.__init__(self, parent, id, pos, size, style, validator, name)
+		wx.Control.__init__(self, parent, id, pos, size, style, validator, name)
 		
 		self.timer = wx.Timer( self )
 		self.Bind( wx.EVT_TIMER, self.onTimer )
@@ -115,7 +115,7 @@ class Clock(wx.PyControl):
 		dc.SetBackground(backBrush)
 		dc.Clear()
 		
-		ctx = wx.GraphicsContext_Create(dc)
+		ctx = wx.GraphicsContext.Create(dc)
 		
 		rOutside = radius * 0.98
 		rOutTicks = rOutside
@@ -137,8 +137,8 @@ class Clock(wx.PyControl):
 		
 		tCos60Local = tCos60
 		tSin60Local = tSin60
-		penSecond = ctx.CreatePen( GetPen(width=wMinuteTicks, cap=wx.wx.CAP_BUTT) )
-		penHour = ctx.CreatePen( GetPen(width=wHourTicks, cap=wx.wx.CAP_BUTT) )
+		penSecond = ctx.CreatePen( GetPen(width=wMinuteTicks, cap=wx.CAP_BUTT) )
+		penHour = ctx.CreatePen( GetPen(width=wHourTicks, cap=wx.CAP_BUTT) )
 		
 		#-----------------------------------------------------------------------------
 		# Draw the metal ring
@@ -191,8 +191,8 @@ class Clock(wx.PyControl):
 		# Draw the digital clock.
 		#
 		ctx.SetFont( ctx.CreateFont(
-				wx.FontFromPixelSize(
-					(0,radius*0.37),
+				wx.Font(
+					(0,int(radius*0.37)),
 					wx.FONTFAMILY_SWISS,
 					wx.FONTSTYLE_NORMAL,
 					wx.FONTWEIGHT_NORMAL,

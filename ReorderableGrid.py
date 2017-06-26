@@ -5,9 +5,9 @@ import wx.lib.mixins.gridlabelrenderer as glr
 import wx.lib.mixins.grid as gae
 import Utils
 
-class GridCellMultiLineStringRenderer(gridlib.PyGridCellRenderer):   
+class GridCellMultiLineStringRenderer(gridlib.GridCellRenderer):   
 	def __init__(self):
-		gridlib.PyGridCellRenderer.__init__(self)
+		gridlib.GridCellRenderer.__init__(self)
 
 	def Draw(self, grid, attr, dc, rect, row, col, isSelected):
 		text = grid.GetCellValue(row, col)
@@ -23,13 +23,13 @@ class GridCellMultiLineStringRenderer(gridlib.PyGridCellRenderer):
 		dc.SetTextForeground(fg)
 		dc.SetBrush(wx.Brush(bg, wx.SOLID))
 		dc.SetPen(wx.TRANSPARENT_PEN)
-		dc.DrawRectangleRect(rect)            
+		dc.DrawRectangle(rect)            
 		grid.DrawTextRectangle(dc, text, rect, hAlign, vAlign)
 
 	def GetBestSize(self, grid, attr, dc, row, col): 
 		text = grid.GetCellValue(row, col)
 		dc.SetFont(attr.GetFont())
-		w, h, lineHeight = dc.GetMultiLineTextExtent(text)                   
+		w, h = dc.GetMultiLineTextExtent(text)                   
 		return wx.Size(w, h)        
 
 	def Clone(self): 
@@ -130,6 +130,7 @@ class ReorderableGridRowMixin( object ):
 		# returned are computed as if the window wasn't
 		# scrolled
 		# This function replaces XYToCell for Virtual Grids
+		row = col = 0
 
 		if rowwidth is None:
 			rowwidth = self.GetGridRowLabelWindow().GetRect().width
@@ -156,7 +157,7 @@ class ReorderableGridRowMixin( object ):
 
 		y += yoff - colheight
 		ypos = 0
-		for row in range(self.GetNumberRows()):
+		for row in xrange(self.GetNumberRows()):
 			nexty = ypos + self.GetRowSize(row)
 			if ypos <= y <= nexty:
 				break

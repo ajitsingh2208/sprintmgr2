@@ -3,12 +3,12 @@ import wx.grid as gridlib
 import Utils
 from HighPrecisionTimeEdit import HighPrecisionTimeEdit
 
-class HighPrecisionTimeEditor(gridlib.PyGridCellEditor):
+class HighPrecisionTimeEditor(gridlib.GridCellEditor):
 	Empty = '00:00:00.000'
 	def __init__(self):
 		self._tc = None
 		self.startValue = self.Empty
-		gridlib.PyGridCellEditor.__init__(self)
+		gridlib.GridCellEditor.__init__(self)
 		
 	def Create( self, parent, id=wx.ID_ANY, evtHandler=None ):
 		self._tc = HighPrecisionTimeEdit(parent, id, allow_none=False, style=wx.TE_PROCESS_ENTER)

@@ -8,7 +8,7 @@ import bisect
 import cPickle as pickle
 from collections import defaultdict
 
-class Graph( wx.PyControl ):
+class Graph( wx.Control ):
 	def __init__( self, parent, id = wx.ID_ANY ):
 		super(Graph, self).__init__( parent, id )
 		
@@ -56,15 +56,15 @@ class Graph( wx.PyControl ):
 		self.Draw( dc, True )
 	
 	def Draw( self, dc, toPrinter=False ):
-		width, height = dc.GetSizeTuple()
+		width, height = dc.GetSize()
 		if not width or not height:
-			width, height = self.GetClientSizeTuple()
+			width, height = self.GetClientSize()
 		
 		#---------------------------------------------------------------------------
 		# Set up a memory dc to draw into.
 		dcIn = dc
 		#bitmap = wx.EmptyBitmap( width, height, dcIn.GetDepth() )
-		bitmap = wx.EmptyBitmap( width, height, 24 )
+		bitmap = wx.Bitmap( width, height, 24 )
 		dcMemory = wx.MemoryDC()
 		dcMemory.SelectObject( bitmap )
 		dc = wx.GCDC( dcMemory )		# Use a graphics context dc to get anti-aliased drawing.
@@ -198,8 +198,8 @@ class Graph( wx.PyControl ):
 		for ff in xrange(10):
 			fontSize = int((fontSizeMax + fontSizeMin) / 2.0)
 			
-			font = wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL)
-			boldFont = wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_BOLD)
+			font = wx.Font((0,fontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+			boldFont = wx.Font((0,fontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
 			dc.SetFont( font )
 			textHeight = dc.GetTextExtent( u'My What a Nice String!' )[1]
 			rowHeight = textHeight * 1.15
@@ -236,7 +236,7 @@ class Graph( wx.PyControl ):
 		thinLine = max( 1, int(fontSize / 10.0) )
 		thickLine = max( 4, int(fontSize / 3.0) )
 		
-		whiteFont = wx.FontFromPixelSize(wx.Size(0,fontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL)
+		whiteFont = wx.Font((0,fontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		greenPen = wx.Pen(wx.Colour(0,200,0), thinLine)
 		greenPenThick = wx.Pen(wx.Colour(0,200,0), thickLine)
 		redPen = wx.Pen( wx.RED, thinLine )
@@ -252,7 +252,7 @@ class Graph( wx.PyControl ):
 		topSpace = 0
 		if toPrinter:
 			titleFontSize = border / 4
-			titleFont = wx.FontFromPixelSize(wx.Size(0,titleFontSize), wx.FONTFAMILY_SWISS, wx.NORMAL, wx.FONTWEIGHT_NORMAL)
+			titleFont = wx.Font((0,titleFontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 			dc.SetFont( titleFont )
 			model = Model.model
 			cNum = model.communique_number.get(GraphDraw.phase, '')
