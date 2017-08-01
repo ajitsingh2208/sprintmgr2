@@ -818,7 +818,7 @@ table.results tr td.fastest{
 		dlg = wx.FileDialog( self, message=u"Choose a SprintMgr file",
 							defaultFile = '',
 							wildcard = u'SprintMgr files (*.smr)|*.smr',
-							style=wx.OPEN | wx.CHANGE_DIR )
+							style=wx.FD_OPEN | wx.FD_CHANGE_DIR )
 		if dlg.ShowModal() == wx.ID_OK:
 			self.openRace( dlg.GetPath() )
 		dlg.Destroy()
@@ -847,7 +847,7 @@ table.results tr td.fastest{
 		dlg = wx.FileDialog( self, message=u"Choose a file for your Competition",
 							defaultFile = '',
 							wildcard = u'SprintMgr files (*.smr)|*.smr',
-							style=wx.SAVE | wx.CHANGE_DIR )
+							style=wx.FD_SAVE | wx.FD_CHANGE_DIR )
 		response = dlg.ShowModal()
 		if response == wx.ID_OK:
 			fileName = dlg.GetPath()

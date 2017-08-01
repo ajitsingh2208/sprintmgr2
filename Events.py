@@ -348,7 +348,7 @@ class EventPosition(EnablePanel):
 		for col in xrange(self.grid.GetNumberCols()):
 			self.grid.SetCellValue( 0, col, '' )						# Remove the labels.
 		
-		self.drawLotsDisplay = wx.StaticBitmap( self, label=self.drawLotsBitmap )
+		self.drawLotsDisplay = wx.StaticBitmap( self, wx.ID_ANY, self.drawLotsBitmap )
 		self.drawLotsDisplay.SetToolTip( wx.ToolTip( u'\n'.join([
 			u"Dice are active when riders need to draw lots to select their positions.",
 			u"Dice are inactive when riders' start positions are known.",
@@ -493,7 +493,7 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		font = GetFont()
 		
 		bitmap = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'checkered_flag_wavy.png'), wx.BITMAP_TYPE_PNG )
-		flagBitmap = wx.StaticBitmap( self, label=bitmap )
+		flagBitmap = wx.StaticBitmap( self, wx.ID_ANY, bitmap )
 		
 		title = wx.StaticText(self, label='Confirm Event Result' )
 		title.SetFont( wx.Font((0,int(FontSize*1.5)), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL) )
