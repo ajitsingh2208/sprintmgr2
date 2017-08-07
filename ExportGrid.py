@@ -133,7 +133,7 @@ class ExportGrid( object ):
 		dc.SetFont( font )
 		wSpace, hSpace = dc.GetTextExtent( '    ' )
 		extents = [ dc.GetMultiLineTextExtent(self.colnames[col]) ]
-		extents.extend( dc.GetMultiLineTextExtent(unicode(v) for v in self.data[col] )
+		extents.extend( dc.GetMultiLineTextExtent(unicode(v)) for v in self.data[col] )
 		return max( e[0] for e in extents ), sum( e[1] for e in extents ) + hSpace/4
 	
 	def _getDataSizeTuple( self, dc, font ):

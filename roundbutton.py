@@ -562,7 +562,7 @@ if __name__ == '__main__':
 	btnSize = 150
 
 	# The font size does not matter here - we just it for the properties.
-	boldFont = wx.FFontFromPixelSize((0,32), wx.DEFAULT, flags=wx.FONTFLAG_BOLD)	
+	boldFont = wx.Font((0,32), wx.DEFAULT, flags=wx.FONTFLAG_BOLD)	
 	
 	for i, (label, colour, boldFlag) in enumerate(btnDefs):
 		btn = RoundButton(mainWin, label=label, size=(btnSize, btnSize))
