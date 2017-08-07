@@ -1,4 +1,5 @@
 import wx
+import wx.adv
 from wx.lib.wordwrap import wordwrap
 import sys
 import os
@@ -54,8 +55,8 @@ def ShowSplashScreen():
 	showSeconds = 2.5
 	
 	# Show the splash screen.
-	splashStyle = wx.SPLASH_CENTRE_ON_PARENT|wx.SPLASH_TIMEOUT
-	frame = wx.SplashScreen(
+	splashStyle = wx.adv.SPLASH_CENTRE_ON_PARENT|wx.adv.SPLASH_TIMEOUT
+	frame = wx.adv.SplashScreen(
 		parent=Utils.getMainWin(),
 		splashStyle=splashStyle,
 		bitmap=bitmap,
