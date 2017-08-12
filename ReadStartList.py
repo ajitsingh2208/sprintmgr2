@@ -40,9 +40,9 @@ class FileNamePage(adv.WizardPageSimple):
 		fileMask = [
 			'Excel Worksheets (*.xlsx;*.xlsm;*.xls)|*.xlsx;*.xlsm;*.xls',
 		]
-		self.fbb = filebrowse.FileBrowseButton( self, -1, size=(450, -1),
+		self.fbb = filebrowse.FileBrowseButton( self, size=(450, -1),
 												labelText = 'Excel Workbook:',
-												fileMode=wx.OPEN,
+												fileMode=wx.FD_OPEN,
 												fileMask='|'.join(fileMask) )
 		vbs.Add( self.fbb, flag=wx.ALL, border = border )
 		
@@ -62,7 +62,7 @@ class SheetNamePage(adv.WizardPageSimple):
 		
 		border = 4
 		vbs = wx.BoxSizer( wx.VERTICAL )
-		vbs.Add( wx.StaticText(self, wx.ID_ANY, 'Specify the sheet containing the Start List for this race:'),
+		vbs.Add( wx.StaticText(self, label='Specify the sheet containing the Start List for this race:'),
 				flag=wx.ALL, border = border )
 		self.ch = wx.Choice( self, -1, choices = self.choices )
 		vbs.Add( self.ch, flag=wx.ALL, border = border )
@@ -93,18 +93,18 @@ class HeaderNamesPage(adv.WizardPageSimple):
 		
 		border = 4
 		vbs = wx.BoxSizer( wx.VERTICAL )
-		vbs.Add( wx.StaticText(self, wx.ID_ANY, 'Specify the spreadsheet columns corresponding to the Start List fields.'),
+		vbs.Add( wx.StaticText(self, label='Specify the spreadsheet columns corresponding to the Start List fields.'),
 				flag=wx.ALL, border = border )
 		vbs.AddSpacer( 8 )
 				
 		border = 4
 		# Create a map for the field names we are looking for
 		# and the headers we found in the Excel sheet.
-		sp = scrolled.ScrolledPanel( self, wx.ID_ANY, size=(750, 64), style = wx.TAB_TRAVERSAL )
+		sp = scrolled.ScrolledPanel( self, size=(750, 64), style=wx.TAB_TRAVERSAL )
 		
 		boldFont = None
 		
-		gs = wx.GridSizer( 2, len(Fields) )
+		gs = wx.GridSizer( 2, len(Fields), 4, 4 )
 		for c, f in enumerate(Fields):
 			label = wx.StaticText(sp, label=f)
 			if boldFont is None:
@@ -117,7 +117,7 @@ class HeaderNamesPage(adv.WizardPageSimple):
 		self.headers = []
 		self.choices = []
 		for c, f in enumerate(Fields):
-			self.choices.append( wx.Choice(sp, wx.ID_ANY, choices = self.headers ) )
+			self.choices.append( wx.Choice(sp, choices=self.headers ) )
 			gs.Add( self.choices[-1] )
 		
 		sp.SetSizer( gs )
@@ -157,10 +157,10 @@ class HeaderNamesPage(adv.WizardPageSimple):
 			self.headers.pop()
 			
 		# Rename empty columns so as not to confuse the user.
-		self.headers = [h if h else 'BlankHeaderName%03d' % (c+1) for c, h in enumerate(self.headers)]
+		self.headers = [h if h else 'BlankHeaderName{:03d}'.format(c+1) for c, h in enumerate(self.headers)]
 		
 		if not self.headers:
-			raise ValueError, 'Could not find a Header Row %s::%s.' % (fileName, sheetName)
+			raise ValueError, 'Could not find a Header Row {}::{}.'.format(fileName, sheetName)
 			
 		# Add an unmapped field at the end.
 		self.headers.append( '' )
@@ -204,25 +204,25 @@ class SummaryPage(adv.WizardPageSimple):
 		
 		border = 4
 		vbs = wx.BoxSizer( wx.VERTICAL )
-		vbs.Add( wx.StaticText(self, wx.ID_ANY, 'Summary:'), flag=wx.ALL, border = border )
-		vbs.Add( wx.StaticText(self, wx.ID_ANY, ' '), flag=wx.ALL, border = border )
+		vbs.Add( wx.StaticText(self, label='Summary:'), flag=wx.ALL, border = border )
+		vbs.Add( wx.StaticText(self, label=' '), flag=wx.ALL, border = border )
 
 		rows = 0
 		
-		self.fileLabel = wx.StaticText( self, wx.ID_ANY, 'Excel File:' )
-		self.fileName = wx.StaticText( self, wx.ID_ANY, '' )
+		self.fileLabel = wx.StaticText( self, label='Excel File:' )
+		self.fileName = wx.StaticText( self )
 		rows += 1
 
-		self.sheetLabel = wx.StaticText( self, wx.ID_ANY, 'Sheet Name:' )
-		self.sheetName = wx.StaticText( self, wx.ID_ANY, '' )
+		self.sheetLabel = wx.StaticText( self, label='Sheet Name:' )
+		self.sheetName = wx.StaticText( self )
 		rows += 1
 
-		self.riderLabel = wx.StaticText( self, wx.ID_ANY, 'Rider Start Times:' )
-		self.riderNumber = wx.StaticText( self, wx.ID_ANY, '' )
+		self.riderLabel = wx.StaticText( self, label='Rider Start Times:' )
+		self.riderNumber = wx.StaticText( self )
 		rows += 1
 
-		self.statusLabel = wx.StaticText( self, wx.ID_ANY, 'Status:' )
-		self.statusName = wx.StaticText( self, wx.ID_ANY, '' )
+		self.statusLabel = wx.StaticText( self, label='Status:' )
+		self.statusName = wx.StaticText( self )
 		rows += 1
 
 		fbs = wx.FlexGridSizer( rows=rows, cols=2, hgap=5, vgap=2 )
@@ -254,10 +254,9 @@ class GetExcelStartListLink( object ):
 		img_filename = os.path.join( Utils.getImageFolder(), '20100718-Excel_icon.png' )
 		img = wx.Bitmap(img_filename) if img_filename and os.path.exists(img_filename) else wx.NullBitmap
 		
-		prewizard = adv.PreWizard()
-		prewizard.SetExtraStyle( adv.WIZARD_EX_HELPBUTTON )
-		prewizard.Create( parent, wx.ID_ANY, 'Import Start List', img )
-		self.wizard = prewizard
+		self.wizard = adv.Wizard()
+		self.wizard.SetExtraStyle( adv.WIZARD_EX_HELPBUTTON )
+		self.wizard.Create( parent, wx.ID_ANY, 'Import Start List', img )
 		self.wizard.Bind( adv.EVT_WIZARD_PAGE_CHANGING, self.onPageChanging )
 		
 		self.fileNamePage = FileNamePage( self.wizard )
@@ -265,9 +264,9 @@ class GetExcelStartListLink( object ):
 		self.headerNamesPage = HeaderNamesPage( self.wizard )
 		self.summaryPage = SummaryPage( self.wizard )
 		
-		adv.WizardPageSimple_Chain( self.fileNamePage, self.sheetNamePage )
-		adv.WizardPageSimple_Chain( self.sheetNamePage, self.headerNamesPage )
-		adv.WizardPageSimple_Chain( self.headerNamesPage, self.summaryPage )
+		adv.WizardPageSimple.Chain( self.fileNamePage, self.sheetNamePage )
+		adv.WizardPageSimple.Chain( self.sheetNamePage, self.headerNamesPage )
+		adv.WizardPageSimple.Chain( self.headerNamesPage, self.summaryPage )
 
 		self.excelLink = excelLink
 		if excelLink:
@@ -304,7 +303,7 @@ class GetExcelStartListLink( object ):
 					if fileName == '':
 						message = 'Please specify an Excel file.'
 					else:
-						message = 'Cannot open file "%s".\nPlease check the file name and/or its read permissions.' % fileName
+						message = 'Cannot open file "{}".\nPlease check the file name and/or its read permissions.'.format(fileName)
 					Utils.MessageOK( self.wizard, message, title='File Open Error', iconMask=wx.ICON_ERROR)
 					evt.Veto()
 			elif page == self.sheetNamePage:
@@ -320,7 +319,7 @@ class GetExcelStartListLink( object ):
 				excelLink.setSheetName( self.sheetNamePage.getSheetName() )
 				fieldCol = self.headerNamesPage.getFieldCol()
 				if fieldCol[Fields[0]] < 0:
-					Utils.MessageOK( self.wizard, 'You must specify a "%s" column.' % Fields[0],
+					Utils.MessageOK( self.wizard, 'You must specify a "{}" column.'.format(Fields[0]),
 										title='Excel Format Error', iconMask=wx.ICON_ERROR)
 					evt.Veto()
 				else:
@@ -404,11 +403,22 @@ def ImportStartList( parent ):
 		
 	info = excelLink.read()
 	errors = []
+	
+	if Utils.MessageOKCancel( parent, 'Replace existing Riders from Spreadsheet?', 'Replace existing Riders' ):
+		Model.model.riders = []
+	
 	riders = Model.model.riders
 	riderBib = dict( (r.bib, r) for r in riders )
 	importCount = 0
 	for bib, data in info.iteritems():
 		# Merge with existing information.
+		if sum(int(bool(n)) for n in (data.get('FirstName',None), data.get('LastName',None))) == 1:
+			combinedName = data.get('FirstName',None) or data.get('LastName',None)
+			if ',' in combinedName:
+				names = combinedName.split(',',2)
+				data['FirstName'] = names[0].strip()
+				data['LastName'] = names[1].strip()
+		
 		if bib in riderBib:
 			r = riderBib[bib]
 			for f in Fields:
@@ -427,7 +437,7 @@ def ImportStartList( parent ):
 		Utils.MessageOK( parent, errorStr, 'Start List Errors' )
 		
 	Utils.refresh()
-	Utils.MessageOK( parent, 'Imported Start List: %d entries' % importCount, 'Start List Import Success' )
+	Utils.MessageOK( parent, 'Imported Start List:{} entries'.format(importCount), 'Start List Import Success' )
 
 #-----------------------------------------------------------------------------------------------------
 

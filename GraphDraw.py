@@ -63,8 +63,7 @@ class Graph( wx.Control ):
 		#---------------------------------------------------------------------------
 		# Set up a memory dc to draw into.
 		dcIn = dc
-		#bitmap = wx.EmptyBitmap( width, height, dcIn.GetDepth() )
-		bitmap = wx.Bitmap( width, height, 24 )
+		bitmap = wx.Bitmap( width, height )
 		dcMemory = wx.MemoryDC()
 		dcMemory.SelectObject( bitmap )
 		dc = wx.GCDC( dcMemory )		# Use a graphics context dc to get anti-aliased drawing.
@@ -420,7 +419,7 @@ class Graph( wx.Control ):
 		dcMemory.SelectObject( wx.NullBitmap )
 
 	def getImage( self, toPrinter = False ):
-		bitmap = wx.EmptyBitmap( 1366, 768 )
+		bitmap = wx.Bitmap( 1366, 768 )
 		mdc = wx.MemoryDC( bitmap )
 		self.Draw( mdc, toPrinter )
 		image = bitmap.ConvertToImage()

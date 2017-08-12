@@ -225,7 +225,7 @@ class EventSelect(EnablePanel):
 		self.grid.CreateGrid( 0, len(self.headerNames) )
 		self.grid.EnableReorderRows( False )
 		self.grid.SetRowLabelSize( 40 )
-		self.grid.SetSelectionMode( gridlib.Grid.GridSelectRows  )
+		self.grid.SetSelectionMode( gridlib.Grid.SelectRows  )
 		
 		font = GetFont()
 		self.grid.SetLabelFont( font )
