@@ -415,10 +415,11 @@ def ImportStartList( parent ):
 		# Merge with existing information.
 		if sum(int(bool(n)) for n in (data.get('FirstName',None), data.get('LastName',None))) == 1:
 			combinedName = data.get('FirstName',None) or data.get('LastName',None)
+			firstIsFirst = int(bool(data.get('FirstName',None)))
 			if ',' in combinedName:
 				names = combinedName.split(',',2)
-				data['FirstName'] = names[1].strip()
-				data['LastName'] = names[0].strip()
+				data['FirstName'] = names[1-firstIsFirst].strip()
+				data['LastName'] = names[firstIsFirst].strip()
 		
 		if bib in riderBib:
 			r = riderBib[bib]
