@@ -127,7 +127,7 @@ class ExportGrid( object ):
 	
 	def _getFont( self, pixelSize = 28, bold = False ):
 		return wx.Font( (0,pixelSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL,
-									 wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL, False )
+									 wx.FONTWEIGHT_BOLD if bold else wx.FONTWEIGHT_NORMAL )
 	
 	def _getColSizeTuple( self, dc, font, col ):
 		dc.SetFont( font )
@@ -157,7 +157,7 @@ class ExportGrid( object ):
 		if not text:
 			return
 		wText, hText = dc.GetMultiLineTextExtent( text )
-		lineHeightText = dc.GetTextExtent( 'PpJj' )
+		lineHeightText = dc.GetTextExtent( 'PpJj' )[1]
 		for line in text.split( '\n' ):
 			dc.DrawText( line, x, y )
 			y += lineHeightText
@@ -179,7 +179,7 @@ class ExportGrid( object ):
 	
 	def drawToFitDC( self, dc ):
 		# Get the dimentions of what we are printing on.
-		(widthPix, heightPix) = dc.GetSizeTuple()
+		(widthPix, heightPix) = dc.GetSize()
 		
 		# Get a reasonable border.
 		borderPix = max(widthPix, heightPix) / 20
@@ -215,7 +215,7 @@ class ExportGrid( object ):
 		# Draw the title.
 		def getTitleSize( font ):
 			dc.SetFont( font )
-			dc.GetMultiLineTextExtent( self.title )
+			return dc.GetMultiLineTextExtent( self.title )
 		font = self._getFontToFit( widthFieldPix - graphicWidth - graphicBorder - qrWidth, graphicHeight, getTitleSize, True )
 		dc.SetFont( font )
 		self._drawMultiLineText( dc, self.title, xPix + graphicWidth + graphicBorder, yPix )
