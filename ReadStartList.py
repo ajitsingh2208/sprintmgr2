@@ -404,7 +404,8 @@ def ImportStartList( parent ):
 	info = excelLink.read()
 	errors = []
 	
-	if Utils.MessageOKCancel( parent, 'Replace existing Riders from Spreadsheet?', 'Replace existing Riders' ):
+	if Utils.MessageYesNo( parent, 'Replace existing Riders from Spreadsheet?\n\nOtherwise, data will be merged by Bib number.',
+		'Replace existing Riders' ):
 		Model.model.riders = []
 	
 	riders = Model.model.riders
