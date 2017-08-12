@@ -417,8 +417,8 @@ def ImportStartList( parent ):
 			combinedName = data.get('FirstName',None) or data.get('LastName',None)
 			if ',' in combinedName:
 				names = combinedName.split(',',2)
-				data['FirstName'] = names[0].strip()
-				data['LastName'] = names[1].strip()
+				data['FirstName'] = names[1].strip()
+				data['LastName'] = names[0].strip()
 		
 		if bib in riderBib:
 			r = riderBib[bib]
