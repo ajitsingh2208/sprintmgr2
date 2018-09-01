@@ -192,19 +192,16 @@ class MainWin( wx.Frame ):
 
 		self.fileMenu.AppendSeparator()
 
-		idCur = wx.NewId()
-		self.fileMenu.Append( idCur , "&Export to Excel...", "Export to an Excel Spreadsheet (.xls)" )
-		self.Bind(wx.EVT_MENU, self.menuExportToExcel, id=idCur )
+		item = self.fileMenu.Append( wx.ID_ANY , "&Export to Excel...", "Export to an Excel Spreadsheet (.xls)" )
+		self.Bind(wx.EVT_MENU, self.menuExportToExcel, item )
 		
-		idCur = wx.NewId()
-		self.fileMenu.Append( idCur , "Export to &HTML...", "Export to HTML (.html)" )
-		self.Bind(wx.EVT_MENU, self.menuExportToHtml, id=idCur )
+		item = self.fileMenu.Append( wx.ID_ANY , "Export to &HTML...", "Export to HTML (.html)" )
+		self.Bind(wx.EVT_MENU, self.menuExportToHtml, item )
 
 		self.fileMenu.AppendSeparator()
 		
-		idCur = wx.NewId()
-		self.fileMenu.Append( idCur , "Export Final &Classification to SeriesMgr Excel...", "Export Final Classification to SeriesMgr Excel (.xls)" )
-		self.Bind(wx.EVT_MENU, self.menuExportFinalClassificationToExcel, id=idCur )
+		item = self.fileMenu.Append( wx.ID_ANY , "Export Final &Classification to SeriesMgr Excel...", "Export Final Classification to SeriesMgr Excel (.xls)" )
+		self.Bind(wx.EVT_MENU, self.menuExportFinalClassificationToExcel, item )
 		
 		self.fileMenu.AppendSeparator()
 		
@@ -260,27 +257,27 @@ class MainWin( wx.Frame ):
 		#-----------------------------------------------------------------------
 		self.toolsMenu = wx.Menu()
 		
-		idCur = wx.NewId()
-		self.toolsMenu.Append( idCur , _("Copy Log File to &Clipboard..."), _("Copy Log File to &Clipboard") )
-		self.Bind(wx.EVT_MENU, self.menuCopyLogFileToClipboard, id=idCur )
+		wx.ID_ANY = wx.NewId()
+		self.toolsMenu.Append( wx.ID_ANY , _("Copy Log File to &Clipboard..."), _("Copy Log File to &Clipboard") )
+		self.Bind(wx.EVT_MENU, self.menuCopyLogFileToClipboard, id=wx.ID_ANY )
 
 		self.menuBar.Append( self.toolsMenu, _("&Tools") )
 		
 		#-----------------------------------------------------------------------
 		self.optionsMenu = wx.Menu()
 		
-		idCur = wx.NewId()
-		self.optionsMenu.Append( idCur , _("Set &Graphic..."), _("Set Graphic for Output") )
-		self.Bind(wx.EVT_MENU, self.menuSetGraphic, id=idCur )
+		wx.ID_ANY = wx.NewId()
+		self.optionsMenu.Append( wx.ID_ANY , _("Set &Graphic..."), _("Set Graphic for Output") )
+		self.Bind(wx.EVT_MENU, self.menuSetGraphic, id=wx.ID_ANY )
 		
 		self.menuBar.Append( self.optionsMenu, _("&Options") )
 		
 		#-----------------------------------------------------------------------
 		self.helpMenu = wx.Menu()
 
-		idCur = wx.NewId()
-		self.helpMenu.Append( idCur , "&QuickStart...", "Get started with SprintMgr Now..." )
-		self.Bind(wx.EVT_MENU, self.menuHelpQuickStart, id=idCur )
+		wx.ID_ANY = wx.NewId()
+		self.helpMenu.Append( wx.ID_ANY , "&QuickStart...", "Get started with SprintMgr Now..." )
+		self.Bind(wx.EVT_MENU, self.menuHelpQuickStart, id=wx.ID_ANY )
 		self.helpMenu.Append( wx.ID_HELP , "&Help...", "Help about SprintMgr..." )
 		self.Bind(wx.EVT_MENU, self.menuHelp, id=wx.ID_HELP )
 		
@@ -289,9 +286,9 @@ class MainWin( wx.Frame ):
 		self.helpMenu.Append( wx.ID_ABOUT , "&About...", "About SprintMgr..." )
 		self.Bind(wx.EVT_MENU, self.menuAbout, id=wx.ID_ABOUT )
 
-		idCur = wx.NewId()
-		self.helpMenu.Append( idCur , "&Tips at Startup...", "Enable/Disable Tips at Startup..." )
-		self.Bind(wx.EVT_MENU, self.menuTipAtStartup, id=idCur )
+		wx.ID_ANY = wx.NewId()
+		self.helpMenu.Append( wx.ID_ANY , "&Tips at Startup...", "Enable/Disable Tips at Startup..." )
+		self.Bind(wx.EVT_MENU, self.menuTipAtStartup, id=wx.ID_ANY )
 
 		self.menuBar.Append( self.helpMenu, "&Help" )
 
