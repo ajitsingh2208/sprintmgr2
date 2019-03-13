@@ -2,6 +2,7 @@
 # Set translation locale.
 #
 import wx
+import six
 locale = wx.Locale()
 
 from Version import AppVerName
@@ -10,7 +11,10 @@ initTranslationCalled = False
 def initTranslation():
 	global initTranslationCalled
 	if not initTranslationCalled:
-		gettext.install(AppVerName.split(None, 1), './locale', unicode=True)
+		try:
+			gettext.install(AppVerName.split(None, 1), './locale', unicode=True)
+		except:
+			gettext.install(AppVerName.split(None, 1), './locale')
 		initTranslationCalled = True
 		
 initTranslation()
@@ -25,9 +29,11 @@ except ImportError:
 import os
 import re
 import sys
+import six
 import math
 import wx.grid		as gridlib
 import unicodedata
+import traceback
 import platform
 import datetime
 import string
@@ -42,11 +48,15 @@ def removeDiacritic(input):
 	else:
 		return unicodedata.normalize('NFKD', input).encode('ASCII', 'ignore')
 	
-validFilenameChars = set( c for c in ("-_.() %s%s" % (string.ascii_letters, string.digits)) )
+invalidFilenameChars = re.compile( "[^-_.() " + string.ascii_letters + string.digits + "]" )
 def RemoveDisallowedFilenameChars( filename ):
-	cleanedFilename = unicodedata.normalize('NFKD', unicode(filename)).encode('ASCII', 'ignore')
-	cleanedFilename = cleanedFilename.replace( '/', '_' )
-	return ''.join(c for c in cleanedFilename if c in validFilenameChars)
+	cleanedFilename = unicodedata.normalize('NFKD', six.text_type(filename).strip()).encode('ASCII', 'ignore').decode()
+	cleanedFilename = cleanedFilename.replace( '/', '_' ).replace( '\\', '_' )
+	return invalidFilenameChars.sub( '', cleanedFilename )
+
+def RemoveDisallowedSheetChars( sheetName ):
+	sheetName = unicodedata.normalize('NFKD', six.text_type(sheetName)).encode('ASCII', 'ignore').decode()
+	return re.sub('[+!#$%&+~`".:;|\\\\/?*\[\] ]+', ' ', sheetName)[:31]		# four backslashes required to match one backslash in re.
 	
 def ordinal( value ):
 	try:
@@ -55,8 +65,8 @@ def ordinal( value ):
 		return value
 
 	if (value % 100)//10 != 1:
-		return "%d%s" % (value, ['th','st','nd','rd','th','th','th','th','th','th'][value%10])
-	return "%d%s" % (value, "th")
+		return "{}{}".format(value, ['th','st','nd','rd','th','th','th','th','th','th'][value%10])
+	return "{}{}".format(value, "th")
 	
 reSpace = re.compile(r'\s')
 def approximateMatch( s1, s2 ):
@@ -126,11 +136,11 @@ def SetLabel( st, label ):
 def MakeGridReadOnly( grid ):
 	attr = gridlib.GridCellAttr()
 	attr.SetReadOnly()
-	for c in xrange(grid.GetNumberCols()):
+	for c in six.moves.range(grid.GetNumberCols()):
 		grid.SetColAttr( c, attr )
 
 def SetRowBackgroundColour( grid, row, colour ):
-	for c in xrange(grid.GetNumberCols()):
+	for c in six.moves.range(grid.GetNumberCols()):
 		grid.SetCellBackgroundColour( row, c, colour )
 		
 def DeleteAllGridRows( grid ):
@@ -139,7 +149,7 @@ def DeleteAllGridRows( grid ):
 		
 def SwapGridRows( grid, r, rTarget ):
 	if r != rTarget and 0 <= r < grid.GetNumberRows() and 0 <= rTarget < grid.GetNumberRows():
-		for c in xrange(grid.GetNumberCols()):
+		for c in six.moves.range(grid.GetNumberCols()):
 			vSave = grid.GetCellValue( rTarget, c )
 			grid.SetCellValue( rTarget, c, grid.GetCellValue(r,c) )
 			grid.SetCellValue( r, c, vSave )
@@ -164,8 +174,8 @@ def AdjustGridSize( grid, rowsRequired = None, colsRequired = None ):
 			grid.AppendCols( -d )
 			
 def SetGridCellBackgroundColour( grid, colour = wx.WHITE ):
-	for r in xrange(grid.GetNumberRows()):
-		for c in xrange(grid.GetNumberCols()):
+	for r in six.moves.range(grid.GetNumberRows()):
+		for c in six.moves.range(grid.GetNumberCols()):
 			grid.SetCellBackgroundColour( r, c, colour )
 
 def ChangeFontInChildren(win, font):
@@ -285,14 +295,14 @@ def disable_stdout_buffering():
 	sys.stdout.close()
 	os.dup2(temp_fd, fileno)
 	os.close(temp_fd)
-	sys.stdout = os.fdopen(fileno, "w", 0)
+	sys.stdout = os.fdopen(fileno, "w")
 		
 def logCall( f ):
 	def _getstr( x ):
 		return u'{}'.format(x) if not isinstance(x, wx.Object) else u'<<{}>>'.format(x.__class__.__name__)
 	
 	def new_f( *args, **kwargs ):
-		parameters = [_getstr(a) for a in args] + [ u'{}={}'.format( key, _getstr(value) ) for key, value in kwargs.iteritems() ]
+		parameters = [_getstr(a) for a in args] + [ u'{}={}'.format( key, _getstr(value) ) for key, value in six.iteritems(kwargs) ]
 		writeLog( 'call: {}({})'.format(f.__name__, removeDiacritic(u', '.join(parameters))) )
 		return f( *args, **kwargs)
 	return new_f

@@ -123,7 +123,7 @@ class Competition( object ):
 			self.labels = dict( [('N%d' % (i+1), r) for i, (t, r) in enumerate(qualifiers)] )
 	
 	def getQualifiers( self ):
-		qualifiers = [(t, rider) for rider, t in self.qualifiers.iteritems()]
+		qualifiers = [(t, rider) for rider, t in six.iteritems(self.qualifiers)]
 		qualifiers.sort()
 		return qualifiers
 	
@@ -133,19 +133,19 @@ class Competition( object ):
 	def propagate( self ):
 		for t, s, e in self.allEvents():
 			e.propagate( self.labels, self.facts )
-		return [ self.labels.get('%dR' % (r+1), None) for r in xrange(self.starters) ]
+		return [ self.labels.get('%dR' % (r+1), None) for r in six.moves.range(self.starters) ]
 
 	def getResults( self ):
 		results = [None] * self.starters
 		# Assign all riders based on qualifying time by group.
 		iTT = self.starters
 		for ttSuffix in ['TT1', 'TT2', 'TT']:
-			tts = [label for label, rider in self.labels.iteritems() if label.endswith(ttSuffix)]
+			tts = [label for label, rider in six.iteritems(self.labels) if label.endswith(ttSuffix)]
 			tts.sort( key = lambda x: -self.qualifiers[self.labels[x]] )
 			for tt in tts:
 				iTT -= 1
 				results[iTT] = self.labels[tt]
-		for i in xrange(self.starters):
+		for i in six.moves.range(self.starters):
 			try:
 				results[i] = self.labels['%dR' % (i+1)]
 			except KeyError:
@@ -283,7 +283,7 @@ class Event( object ):
 			others = [others]
 		self.others = others
 		self.heatsMax = heatsMax
-		self.heats = [Heat(self, self.composition, self.winner, self.others, heat, self.heatsMax) for heat in xrange(1, 1 + self.heatsMax)]
+		self.heats = [Heat(self, self.composition, self.winner, self.others, heat, self.heatsMax) for heat in six.moves.range(1, 1 + self.heatsMax)]
 		
 	def meetsPreconditions( self, labels, facts ):
 		# First check if all the starters are known.
@@ -313,7 +313,7 @@ class EventFour( EventBase ):
 
 	def meetsPreconditions( self, labels ):
 		return super(EventFour, self).meetsPreconditions(labels) and \
-				not all( ('%dR' % i) in labels for i in xrange(self.bestPlace, self.bestPlace+4) )
+				not all( ('%dR' % i) in labels for i in six.moves.range(self.bestPlace, self.bestPlace+4) )
 		
 	def propagate( self, labels, facts ):
 		if not self.meetsPreconditions(labels):
@@ -327,7 +327,7 @@ class EventFour( EventBase ):
 			labels['%dR' % (facts.getPlace(c) - 1 + self.bestPlace)] = labels[c]
 
 	def getOutLabels( self ):
-		return [('%dR' % i)for i in xrange(self.bestPlace, self.bestPlace+4)]
+		return [('%dR' % i)for i in six.moves.range(self.bestPlace, self.bestPlace+4)]
 	
 	def getRepr( self, labels, facts ):
 		def labName( id ):
@@ -335,7 +335,7 @@ class EventFour( EventBase ):
 		return '%s, Heat 1: %s => %s' % (
 			self.system.name,
 			', '.join(labName(c) for c in self.composition),
-			', '.join(labName('%dR' % i) for i in xrange(self.bestPlace, self.bestPlace+4)) )
+			', '.join(labName('%dR' % i) for i in six.moves.range(self.bestPlace, self.bestPlace+4)) )
 	
 			
 competitions = [
@@ -615,31 +615,31 @@ JOSE	0.613	 894,343	28'''
 	competition = copy.copy( worldCup )
 	
 	riders = [Rider(101 + i, '', name) for i, name in enumerate(names)]
-	for i in xrange(competition.starters):
+	for i in six.moves.range(competition.starters):
 		competition.addQualifier( riders[i], random.gauss(57/5, 0.5) )
 	
-	print '--------------------------------------------------------------------'
+	print ( '--------------------------------------------------------------------' )
 	Simulate( competition )
 	
 	'''
-	print competition.facts
-	print '\n'.join( '%s = %s' % (id, rider.full_name) for id, rider in competition.labels.iteritems())
-	print '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() )
+	print ( competition.facts )
+	print ( '\n'.join( '%s = %s' % (id, rider.full_name) for id, rider in six.iteritems(competition.labels)) )
+	print ( '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() ) )
 	
-	print
+	print (  )
 	competition.addFact( Fact('N1', place=1) )
-	print '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() )
+	print ( '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() ) )
 	
-	print
+	print (  )
 	competition.addFact( Fact('N2', place=1) )
-	print '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() )
+	print ( '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() ) )
 
-	print
+	print (  )
 	competition.addFact( Fact('N9', place=1) )
-	print '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() )
+	print ( \n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() ) )
 	
-	print
+	print (  )
 	competition.addFact( Fact('N13', place=1) )
-	print '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() )
+	print ( '\n'.join( e.getRepr(competition.labels) for t, s, e in competition.getMeetsPreconditions() ) )
 	'''
 	

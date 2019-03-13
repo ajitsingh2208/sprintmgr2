@@ -1,7 +1,7 @@
-
-import Model
-import xlwt
 import re
+import six
+import xlwt
+import Model
 
 labelStyle = xlwt.easyxf( "alignment: horizontal right;" )
 fieldStyle = xlwt.easyxf( "alignment: horizontal right;" )
@@ -89,7 +89,7 @@ def ToExcelSheet( ws ):
 	
 	# Write the points for each placing.
 	rowCur = 7
-	for p in xrange(1, maxPlace):
+	for p in six.moves.range(1, maxPlace):
 		ws.write( rowCur + p - 1, 2, race.pointsForPlace[p], style if p != 1 else styleTop )
 	styleTop = xlwt.easyxf(
 	"alignment: horizontal center;"
@@ -101,7 +101,7 @@ def ToExcelSheet( ws ):
     )
 	
 	# Write the positions (1 .. maxPlace - 1).
-	for p in xrange(1, maxPlace):
+	for p in six.moves.range(1, maxPlace):
 		ws.write( rowCur + p - 1, 3, p, style if p != 1 else styleTop )
 		
 	styleTop = xlwt.easyxf(
@@ -112,11 +112,11 @@ def ToExcelSheet( ws ):
 	"alignment: horizontal center;"
     "borders: left thin, right thin;"
     )
-	for (sprint, place), num in race.sprintResults.iteritems():
+	for (sprint, place), num in six.iteritems(race.sprintResults):
 		if place < maxPlace:
 			ws.write( rowCur + place - 1, sprint + 3, num, style if place != 1 else styleTop )
-	for place in xrange(1, maxPlace):
-		for sprint in xrange(1, maxSprints+1):
+	for place in six.moves.range(1, maxPlace):
+		for sprint in six.moves.range(1, maxSprints+1):
 			if (sprint, place) not in race.sprintResults:
 				ws.write( rowCur + place - 1, sprint + 3, '', style if place != 1 else styleTop )
 		
@@ -151,7 +151,7 @@ def ToExcelSheet( ws ):
 	"alignment: horizontal center;"
     "borders: top thin, bottom thin, left thin, right thin;"
     )
-	for s in xrange(0, maxSprints):
+	for s in six.moves.range(0, maxSprints):
 		ws.write( rowCur, s + 4, 'Sp%d' % (s + 1), style )
 	
 	ws.write( rowCur, maxSprints + 4, 'Laps Up', style )
@@ -181,11 +181,11 @@ def ToExcelSheet( ws ):
 		riderToRow[rider.num] = r
 
 	sprintNumPoints = {}
-	for (sprint, place), num in race.sprintResults.iteritems():
+	for (sprint, place), num in six.iteritems(race.sprintResults):
 		if place < maxPlace and num in riderToRow:
 			sprintNumPoints[(sprint, num)] = race.getSprintPoints(sprint, place)
 
-	for sprint in xrange(1, maxSprints+1):
+	for sprint in six.moves.range(1, maxSprints+1):
 		for r, rider in enumerate(riders):
 			ws.write( rowCur + r, sprint + 3, sprintNumPoints.get((sprint, rider.num), ''), styleRegular )
 			

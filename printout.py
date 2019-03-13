@@ -22,9 +22,10 @@
 #   (can use as a simple text printer by supplying a list of strings.)
 # o Add a small _main_ for self test
  
-import  copy
-import  types
-import  wx
+import copy
+import types
+import wx
+import six
 
 class PrintBase:
 	def SetPrintFont(self, font):	  # set the DC font parameters
@@ -270,16 +271,16 @@ class PrintTableDraw(wx.ScrolledWindow, PrintBase):
 		self.column.append(pos_x)
 
 		#module logic expects two dimensional data -- fix input if needed
-		if isinstance(self.data,types.StringTypes):
+		if isinstance(self.data, six.string_types):
 			self.data = [[copy.copy(self.data)]] # a string becomes a single cell
 		try:
 			rows = len(self.data)
 		except TypeError:
-			self.data = [[unicode(self.data)]] # a non-iterable becomes a single cell
+			self.data = [[u'{}'.format(self.data)]] # a non-iterable becomes a single cell
 			rows = 1
 		first_value = self.data[0]
 
-		if isinstance(first_value, types.StringTypes): # a sequence of strings
+		if isinstance(first_value, six.string_types): # a sequence of strings
 			if self.label == [] and self.set_column == []:
 				data = []
 				for x in self.data:	 #becomes one column
@@ -294,7 +295,7 @@ class PrintTableDraw(wx.ScrolledWindow, PrintBase):
 			if self.label == [] and self.set_column == []:
 				data = []	   #becomes one column
 				for x in self.data:
-					data.append([unicode(x)])
+					data.append([u'{}'.format(x)])
 				column_total = 1
 			else:
 				data = [self.data] #becomes one row
@@ -320,16 +321,16 @@ class PrintTableDraw(wx.ScrolledWindow, PrintBase):
 				self.column.append(pos_x)   # position of each column
 
 		if pos_x > self.page_width * self.pwidth:	# check if it fits in page
-			print "Warning, Too Wide for Page"
+			print ( "Warning, Too Wide for Page" )
 			return
 
 		if self.label != []:
 			if len(self.column) -1 != len(self.label):
-				print "Column Settings Incorrect", "\nColumn Value: " + str(self.column), "\nLabel Value: " + str(self.label)
+				print ( "Column Settings Incorrect", "\nColumn Value: " + str(self.column), "\nLabel Value: " + str(self.label) )
 				return
 
 		if column_total != len(self.column) -1:
-			print "Cannot fit", first_value, 'in', len(self.column)-1, 'columns.'
+			print ( "Cannot fit", first_value, 'in', len(self.column)-1, 'columns.' )
 			return
 
 		for col in range(column_total):
@@ -509,17 +510,17 @@ class PrintTableDraw(wx.ScrolledWindow, PrintBase):
 
 			ftype = val["Type"]
 			if ftype == "Pageof":
-				addtext = "Page " + str(self.page) + " of " + str(self.total_pages)
+				addtext = u'{} {} {} {}'.format("Page", self.page, "of", self.total_pages)
 			elif ftype == "Page":
-				addtext = "Page " + str(self.page)
+				addtext = u'{} {}'.format("Page", self.page)
 			elif ftype == "Num":
-				addtext = str(self.page)
+				addtext = u'{}'.format(self.page)
 			elif ftype == "Date":
 				addtext = self.GetDate()
 			elif ftype == "Date & Time":
 				addtext = self.GetDateTime()
 			else:
-				addtext = ""
+				addtext = u""
 
 			self.OutTextPageWidth(text+addtext, footer_pos, val["Align"], footer_indent, True)
 
@@ -559,7 +560,7 @@ class PrintTableDraw(wx.ScrolledWindow, PrintBase):
 		self.col = 0
 		max_y = 0
 		for vtxt in row_val:
-			if not isinstance(vtxt,types.StringTypes):
+			if not isinstance(vtxt,six.string_types):
 				vtxt = str(vtxt)
 			self.region = self.column[self.col+1] - self.column[self.col]
 			self.indent = self.column[self.col]

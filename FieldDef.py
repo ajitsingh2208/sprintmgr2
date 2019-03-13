@@ -5,6 +5,7 @@ import wx
 import wx.lib.masked.numctrl as NC
 import  wx.lib.intctrl as IC
 from wx.lib.masked import TimeCtrl, EVT_TIMEUPDATE
+import six
 
 def convert(name):
 	s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
@@ -49,12 +50,12 @@ class FieldDef( object ):
 		
 	@staticmethod
 	def getType( v ):
-		if isinstance(v, basestring):		return FieldDef.StringType
+		if isinstance(v, six.string_types):	return FieldDef.StringType
 		if isinstance(v, float):			return FieldDef.FloatType
 		if isinstance(v, int):				return FieldDef.IntType
 		if isinstance(v, datetime.date):	return FieldDef.DateType
 		if isinstance(v, datetime.time):	return FieldDef.TimeType
-		raise ValueError, "unknown type"
+		raise ValueError( "unknown type" )
 	
 	def makeCtrls( self, parent ):
 		self.labelCtrl = wx.StaticText( parent, wx.ID_ANY, self.name )
@@ -134,7 +135,7 @@ class FieldDef( object ):
 			v = self.editCtrl.GetValue()
 			if self.type == FieldDef.StringType:
 				v = v.strip()
-			return unicode(v)
+			return u'{}'.format(v)
 		if self.type == FieldDef.DateType:
 			dt = self.editCtrl.GetValue()
 			v = datetime.date( dt.GetYear(), dt.GetMonth() + 1, dt.GetDay() )	# Adjust for 0-based month.
@@ -155,6 +156,3 @@ class FieldDef( object ):
 	def onChanged( self, event ):
 		if self.changeCallback:
 			wx.CallAfter( self.changeCallback, self )
-	
-def MakeFieldDef( obj, attr, name=None, choices=None ):
-	return FieldDef( attr = attr, name = name, type = FieldDef.getType(obj, attr) )

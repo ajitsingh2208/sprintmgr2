@@ -4,6 +4,7 @@ import wx.grid as gridlib
 import re
 import os
 import sys
+import six
 import Utils
 import Model
 from ReorderableGrid import ReorderableGrid, GridCellMultiLineStringRenderer
@@ -61,7 +62,7 @@ def visitComponentTree( parent ):
 	try:
 		for child in parent.Children:
 			yield visitComponentTree(child)
-	except AttributError:
+	except AttributeError:
 		pass
 
 #------------------------------------------------------------------------------------
@@ -131,7 +132,7 @@ class RestartDialog( wx.Dialog ):
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(startPositions) )
 		
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
@@ -153,7 +154,7 @@ class RestartDialog( wx.Dialog ):
 		for row, p in enumerate(startPositions):
 			rider = state.labels[p]
 			for col, v in enumerate([rider.bib, rider.full_name, rider.team, '']):
-				self.grid.SetCellValue( row, col, unicode(v) )
+				self.grid.SetCellValue( row, col,u' {}'.format(v) )
 		
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
@@ -166,7 +167,7 @@ class RestartDialog( wx.Dialog ):
 		
 	def commit( self ):
 		places = []
-		for row in xrange(self.grid.GetNumberRows()):
+		for row in six.moves.range(self.grid.GetNumberRows()):
 			bib = self.grid.GetCellValue( row, 0 )
 			status = self.grid.GetCellValue( row, self.iColStatus )
 			warning = self.grid.GetCellValue( row, self.iColWarning )
@@ -229,7 +230,7 @@ class EventSelect(EnablePanel):
 		
 		font = GetFont()
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
@@ -276,12 +277,12 @@ class EventSelect(EnablePanel):
 					e.multi_line_name,
 					e.multi_line_bibs, e.multi_line_rider_names, e.multi_line_rider_teams,
 					e.multi_line_inlabels, e.multi_line_outlabels ]):
-				self.grid.SetCellValue( row, col, unicode(v) )
+				self.grid.SetCellValue( row, col,u' {}'.format(v) )
 			if e.system != self.events[0].system:
-				for col in xrange(self.grid.GetNumberCols()):
+				for col in six.moves.range(self.grid.GetNumberCols()):
 					self.grid.SetCellBackgroundColour( row, col, InactiveBackgroundColour )
 			else:
-				for col in xrange(self.grid.GetNumberCols()):
+				for col in six.moves.range(self.grid.GetNumberCols()):
 					self.grid.SetCellBackgroundColour( row, col, wx.WHITE )
 
 		self.grid.AutoSizeColumns( False )
@@ -330,7 +331,7 @@ class EventPosition(EnablePanel):
 		
 		font = wx.Font( (0,FontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL )
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
 			self.grid.SetCellValue( 0, col, self.headerNames[col] )		# Add the label as data.
 			attr = gridlib.GridCellAttr()
@@ -345,7 +346,7 @@ class EventPosition(EnablePanel):
 		
 		self.grid.AutoSizeColumns( False )								# Resize to fit the column name.
 		self.grid.AutoSizeRows( False )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			self.grid.SetCellValue( 0, col, '' )						# Remove the labels.
 		
 		self.drawLotsDisplay = wx.StaticBitmap( self, wx.ID_ANY, self.drawLotsBitmap )
@@ -396,7 +397,7 @@ class EventPosition(EnablePanel):
 			rider = state.labels[p]
 			for col, v in enumerate([rider.bib, rider.full_name, rider.team,
 					'DNS' if (rider in DNSs or rider.bib in CacheDNSs) else ''] ):
-				self.grid.SetCellValue( row, col, unicode(v) )
+				self.grid.SetCellValue( row, col,u' {}'.format(v) )
 		
 		self.grid.AutoSizeColumns( False )
 		self.grid.AutoSizeRows( False )
@@ -410,7 +411,7 @@ class EventPosition(EnablePanel):
 			return
 
 		startPositions = []
-		for row in xrange(self.grid.GetNumberRows()):
+		for row in six.moves.range(self.grid.GetNumberRows()):
 			bib = self.grid.GetCellValue( row, 0 )
 			try:
 				bib = int(bib)
@@ -540,7 +541,7 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 		self.grid.SetColAttr( 0, attr )
 		
 		iColStatus = None
-		for col in xrange(grid.GetNumberCols()):
+		for col in six.moves.range(grid.GetNumberCols()):
 			headerName = grid.GetColLabelValue(col)
 			self.grid.SetColLabelValue( col+1, headerName )
 			attr = gridlib.GridCellAttr()
@@ -560,12 +561,12 @@ class EventFinishOrderConfirmDialog( wx.Dialog ):
 			attr.SetReadOnly( True )
 			self.grid.SetColAttr( col+1, attr )
 		
-		results = [ [grid.GetCellValue(row, col) for col in xrange(grid.GetNumberCols())] for row in xrange(grid.GetNumberRows()) ]
+		results = [ [grid.GetCellValue(row, col) for col in six.moves.range(grid.GetNumberCols())] for row in six.moves.range(grid.GetNumberRows()) ]
 		results.sort( key = lambda x: x[iColStatus] )
 		
-		for row in xrange(grid.GetNumberRows()):
-			self.grid.SetCellValue( row, 0, unicode(row+1) )
-			for col in xrange(grid.GetNumberCols()):
+		for row in six.moves.range(grid.GetNumberRows()):
+			self.grid.SetCellValue( row, 0, u'{}'.format(row+1) )
+			for col in six.moves.range(grid.GetNumberCols()):
 				v = results[row][col]
 				self.grid.SetCellValue( row, col+1, v if v != '0.000' else '' )
 						
@@ -619,7 +620,7 @@ class EventFinishOrder(EnablePanel):
 		
 		font = GetFont()
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			self.grid.SetColLabelValue( col, self.headerNames[col] )
 			self.grid.SetCellValue( 0, col, self.headerNames[col] )		# Add the label as data.
 			attr = gridlib.GridCellAttr()
@@ -642,7 +643,7 @@ class EventFinishOrder(EnablePanel):
 		
 		self.grid.AutoSizeColumns( False )								# Resize to fit the column name.
 		self.grid.AutoSizeRows( False )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			self.grid.SetCellValue( 0, col, '' )						# Remove the labels.
 		
 		boxSizer.Add( self.activeBar, 0, flag=wx.ALL|wx.EXPAND, border = 4 )
@@ -676,7 +677,7 @@ class EventFinishOrder(EnablePanel):
 		if ret != wx.ID_OK:
 			return
 		
-		oldBibOrder = [int(self.grid.GetCellValue(row, 0)) for row in xrange(self.grid.GetNumberRows())]				
+		oldBibOrder = [int(self.grid.GetCellValue(row, 0)) for row in six.moves.range(self.grid.GetNumberRows())]				
 		oldBibs = set( oldBibOrder )
 		
 		v = re.sub( r'[^\d]', u' ', v )
@@ -713,7 +714,7 @@ class EventFinishOrder(EnablePanel):
 				rider = state.labels[p]
 				if (rider.bib in CacheDNSs) == b:
 					for col, v in enumerate([rider.bib, rider.full_name, rider.team, 'DNS' if rider.bib in CacheDNSs else '', '']):
-						self.grid.SetCellValue( row, col, unicode(v) )
+						self.grid.SetCellValue( row, col,u' {}'.format(v) )
 					row += 1
 		
 		self.grid.AutoSizeColumns( False )
@@ -730,7 +731,7 @@ class EventFinishOrder(EnablePanel):
 		
 		places = []
 		times = []
-		for row in xrange(self.grid.GetNumberRows()):
+		for row in six.moves.range(self.grid.GetNumberRows()):
 			bib = self.grid.GetCellValue( row, 0 )
 			try:
 				bib = int(bib)

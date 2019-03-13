@@ -1,4 +1,5 @@
 import random
+import operator
 
 def getTestData():
 	results = '''
@@ -293,7 +294,7 @@ Spin Doctors
 	firstNames = [line.split('.')[1].strip() for line in firstNames.split('\n') if line.strip()]
 	lastNames = [line.split('.')[1].strip() for line in lastNames.split('\n') if line.strip()]
 	teams = [line.strip() for line in teams.split('\n') if line.strip()]
-	bibs = range( 100, 100+starters )
+	bibs = list( range(100, 100+starters) )
 	
 	random.shuffle( firstNames )
 	random.shuffle( lastNames )
@@ -301,13 +302,13 @@ Spin Doctors
 	random.shuffle( bibs )
 	
 	testData = []
-	for i in xrange(starters):
+	for i, bib in enumerate(bibs):
 		qt = random.gauss( 12.0, 0.5 )
-		testData.append( (bibs[i], firstNames[i%len(firstNames)], lastNames[i%len(lastNames)], teams[i%len(teams)], qt) )
+		testData.append( (bib, firstNames[i%len(firstNames)], lastNames[i%len(lastNames)], teams[i%len(teams)], qt) )
 
-	testData.sort( key = lambda d: d[-1], reverse=True )
+	testData.sort( key = operator.itemgetter(-1), reverse=True )
 	return testData
 
 if __name__ == "__main__":
-	print getTestData()
-	print getRandomTestData( 100 )
+	print ( getTestData() )
+	print ( getRandomTestData(100) )

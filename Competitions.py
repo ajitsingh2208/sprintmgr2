@@ -1,3 +1,4 @@
+import six
 import random
 from Model import Competition, Tournament, System, Event
 import Model
@@ -627,7 +628,7 @@ def getCompetitions():
 	)
 	
 	# Derive Four Cross for 32 and 16 starters from 64 starters.
-	for i in xrange(2):
+	for i in six.moves.range(2):
 		fcX = copy.deepcopy( competitions[-1] )
 		fcX.tournaments[0].systems.pop( 0 )
 		fcX.starters //= 2
@@ -641,10 +642,10 @@ def getCompetitions():
 	
 	#-----------------------------------------------------------------------------------------
 	def genN( iStart, iEnd, stride=1 ):
-		return ' '.join( 'N{}'.format(i) for i in xrange(iStart, iEnd+1, stride) )
+		return ' '.join( 'N{}'.format(i) for i in six.moves.range(iStart, iEnd+1, stride) )
 	
 	def gen( suffix, iStart, iEnd, stride=1 ):
-		return ' '.join( '{}{}'.format(i, suffix) for i in xrange(iStart, iEnd+1, stride) )
+		return ' '.join( '{}{}'.format(i, suffix) for i in six.moves.range(iStart, iEnd+1, stride) )
 	
 	competitions.append(
 		Competition( 'Track: Track Endurance Eliminator', [

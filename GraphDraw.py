@@ -1,11 +1,12 @@
 import wx
+import six
 import Utils
 import Model
 from Competitions import SetDefaultData, DoRandomSimulation
 from Utils import WriteCell
 from Events import GetFont, GetBoldFont
 import bisect
-import cPickle as pickle
+pickle = six.moves.cPickle
 from collections import defaultdict
 
 class Graph( wx.Control ):
@@ -40,7 +41,7 @@ class Graph( wx.Control ):
 		i = max( 0, bisect.bisect_left(self.colX, x, hi=len(self.colX)-1) - 1 )
 		if self.colX[i] <= x < self.colX[i+1]:
 			for rect, rider in self.rectRiders[i]:
-				if rect.ContainsXY(x, y):
+				if rect.Contains(x, y):
 					if self.selectedRider != rider:
 						self.selectedRider = rider;
 						wx.CallAfter( self.Refresh )
@@ -93,7 +94,7 @@ class Graph( wx.Control ):
 		
 		# Set the list of qualifiers.  Double-space the rows.
 		grid = [[{'title':u'Qualifiers'}, {}]]
-		for i in xrange(competition.starters):
+		for i in six.moves.range(competition.starters):
 			grid[0].append( {'rider':state.labels.get(u'N{}'.format(i+1),None)} )
 			grid[0].append( {} )
 		
@@ -194,7 +195,7 @@ class Graph( wx.Control ):
 		# Binary search for the right font size.
 		fontSize = 0.4 * height / float(model.competition.starters)
 		fontSizeMin, fontSizeMax = 0.0, fontSize * 3
-		for ff in xrange(10):
+		for ff in six.moves.range(10):
 			fontSize = int((fontSizeMax + fontSizeMin) / 2.0)
 			
 			font = wx.Font((0,fontSize), wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
@@ -255,7 +256,7 @@ class Graph( wx.Control ):
 			dc.SetFont( titleFont )
 			model = Model.model
 			cNum = model.communique_number.get(GraphDraw.phase, '')
-			dc.DrawText( u'Communiqu\u00E9: {}  Sprint Summary for {}: {}'.format(cNum, model.competition_name, model.category, model.category),
+			dc.DrawText( u'Communiqu\u00E9: {}  Sprint Summary for {}: {}'.format(cNum, model.competition_name, model.category),
 				border, border - 2*titleFontSize )
 			
 		dc.SetFont( font )
@@ -294,7 +295,7 @@ class Graph( wx.Control ):
 			
 		# Create a map of the last event for all riders.
 		riderLastEvent = {}
-		for cFrom in xrange(len(grid)-2, -1, -1):
+		for cFrom in six.moves.range(len(grid)-2, -1, -1):
 			for rFrom, vFrom in enumerate(grid[cFrom]):
 				try:
 					rider = state.labels[vFrom['rider']]
@@ -305,8 +306,8 @@ class Graph( wx.Control ):
 						
 		def getIsBlocked( cFrom, rFrom, cTo, rTo ):
 			''' Check if there is an entry in the rectangle between cFrom, rFrom and cTo, rTo. '''
-			for c in xrange(cFrom+1, cTo):
-				for r in xrange( min(rFrom, rTo), min(max(rFrom, rTo), len(grid[c])) ):
+			for c in six.moves.range(cFrom+1, cTo):
+				for r in six.moves.range( min(rFrom, rTo), min(max(rFrom, rTo), len(grid[c])) ):
 					if grid[c][r]:
 						return True
 			return False
@@ -335,13 +336,13 @@ class Graph( wx.Control ):
 			if competition.starters == 18 or not getIsBlocked(cFrom, rFrom, cTo, rTo):
 				drawSCurve( x1, y1, x2, y2 )
 			else:
-				maxRowBetween = max( len(grid[c]) for c in xrange(cFrom+1, cTo) )
+				maxRowBetween = max( len(grid[c]) for c in six.moves.range(cFrom+1, cTo) )
 				xa = colX[cFrom+1]
 				rAvoid = maxRowBetween + colAvoidCount[cFrom]
 				colAvoidCount[cFrom] += 2
 				ya = yTop + rAvoid * rowHeight
 				drawSCurve( x1, y1, xa, ya )
-				for cNext in xrange(cFrom+2, cTo+1):
+				for cNext in six.moves.range(cFrom+2, cTo+1):
 					if not getIsBlocked(cNext, rAvoid, cTo, rTo):
 						break
 				xb = colX[min(cNext+1, len(grid)-1)] - colSpace
@@ -404,7 +405,7 @@ class Graph( wx.Control ):
 					if rider:
 						name = getFullName( rider, v )
 						if 'classification' in v:
-							pos = unicode(v['classification'])
+							pos = u'{}'.format(v['classification'])
 							if pos.isdigit():
 								name = u'{}.  {}'.format(pos, name)
 							else:

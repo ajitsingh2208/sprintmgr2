@@ -1,6 +1,6 @@
-
 import wx
 import os
+import six
 import xlwt
 import Utils
 import Model
@@ -14,35 +14,15 @@ from contextlib import contextmanager
 
 @contextmanager
 def tag( buf, name, attrs = {} ):
-	if isinstance(attrs, basestring) and attrs:
+	if isinstance(attrs, six.string_types) and attrs:
 		attrs = { 'class': attrs }
 	buf.write( u'<{}>'.format( u' '.join(
-			[name] + [u'{}="{}"'.format(attr, value) for attr, value in attrs.iteritems()]
+			[name] + [u'{}="{}"'.format(attr, value) for attr, value in six.iteritems(attrs)]
 		) ) )
 	yield
 	buf.write( u'</{}>\n'.format(name) )
 
 brandText = u'Powered by SprintMgr (sites.google.com/site/crossmgrsoftware)'
-
-def ImageToPil( image ):
-	"""Convert wx.Image to PIL Image."""
-	w, h = image.GetSize()
-	data = image.GetData()
-
-	redImage = Image.new("L", (w, h))
-	redImage.fromstring(data[0::3])
-	greenImage = Image.new("L", (w, h))
-	greenImage.fromstring(data[1::3])
-	blueImage = Image.new("L", (w, h))
-	blueImage.fromstring(data[2::3])
-
-	if image.HasAlpha():
-		alphaImage = Image.new("L", (w, h))
-		alphaImage.fromstring(image.GetAlphaData())
-		pil = Image.merge('RGBA', (redImage, greenImage, blueImage, alphaImage))
-	else:
-		pil = Image.merge('RGB', (redImage, greenImage, blueImage))
-	return pil
 
 def getHeaderFName():
 	''' Get the header bitmap if specified and exists, or use a default.  '''
@@ -99,8 +79,8 @@ class ExportGrid( object ):
 	def __init__( self, title, grid ):
 		self.title = title
 		self.grid = grid
-		self.colnames = [grid.GetColLabelValue(c) for c in xrange(grid.GetNumberCols())]
-		self.data = [ [grid.GetCellValue(r, c) for r in xrange(grid.GetNumberRows())] for c in xrange(len(self.colnames)) ]
+		self.colnames = [grid.GetColLabelValue(c) for c in six.moves.range(grid.GetNumberCols())]
+		self.data = [ [grid.GetCellValue(r, c) for r in six.moves.range(grid.GetNumberRows())] for c in six.moves.range(len(self.colnames)) ]
 		
 		# Trim all empty rows.
 		self.numRows = 0
@@ -118,7 +98,7 @@ class ExportGrid( object ):
 		self.leftJustifyCols = {}
 		self.rightJustifyCols = {}
 		
-		rightJustify = set( ['Pos', 'Bib', 'Time'] )
+		rightJustify = {'Pos', 'Bib', 'Time'}
 		for c, n in enumerate(self.colnames):
 			if n in rightJustify:
 				self.rightJustifyCols[c] = True
@@ -133,7 +113,7 @@ class ExportGrid( object ):
 		dc.SetFont( font )
 		wSpace, hSpace = dc.GetTextExtent( '    ' )
 		extents = [ dc.GetMultiLineTextExtent(self.colnames[col]) ]
-		extents.extend( dc.GetMultiLineTextExtent(unicode(v)) for v in self.data[col] )
+		extents.extend( dc.GetMultiLineTextExtent(u'{}'.format(v)) for v in self.data[col] )
 		return max( e[0] for e in extents ), sum( e[1] for e in extents ) + hSpace/4
 	
 	def _getDataSizeTuple( self, dc, font ):
@@ -230,8 +210,8 @@ class ExportGrid( object ):
 		
 		# Get the max height per row.
 		rowHeight = [0] * (self.numRows + 1)
-		for r in xrange(self.numRows):
-			rowHeight[r] = max( dc.GetMultiLineTextExtent(self.grid.GetCellValue(r, c))[1] for c in xrange(len(self.colnames)))
+		for r in six.moves.range(self.numRows):
+			rowHeight[r] = max( dc.GetMultiLineTextExtent(self.grid.GetCellValue(r, c))[1] for c in six.moves.range(len(self.colnames)))
 		
 		yPixTop = yPix
 		yPixMax = yPix
@@ -240,9 +220,9 @@ class ExportGrid( object ):
 			yPix = yPixTop
 			w, h = dc.GetMultiLineTextExtent( c )
 			if col in self.leftJustifyCols:
-				self._drawMultiLineText( dc, unicode(c), xPix, yPix )					# left justify
+				self._drawMultiLineText( dc,u' {}'.format(c), xPix, yPix )					# left justify
 			else:
-				self._drawMultiLineText( dc, unicode(c), xPix + colWidth - w, yPix )	# right justify
+				self._drawMultiLineText( dc,u' {}'.format(c), xPix + colWidth - w, yPix )	# right justify
 			yPix += h + hSpace/4
 			if col == 0:
 				yLine = yPix - hSpace/8
@@ -252,7 +232,7 @@ class ExportGrid( object ):
 					dc.DrawLine( borderPix, yLine, widthPix - borderPix, yLine )
 					
 			for r, v in enumerate(self.data[col]):
-				vStr = unicode(v)
+				vStr =u' {}'.format(v)
 				if vStr:
 					w, h = dc.GetMultiLineTextExtent( vStr )
 					if col in self.leftJustifyCols:
@@ -333,9 +313,9 @@ class ExportGrid( object ):
 						with tag(buf, 'th'):
 							buf.write( cgi.escape(col).replace('\n', '<br/>\n') )
 			with tag(buf, 'tbody'):
-				for row in xrange(max(len(d) for d in self.data)):
+				for row in six.moves.range(max(len(d) for d in self.data)):
 					with tag(buf, 'tr'):
-						for col in xrange(len(self.colnames)):
+						for col in six.moves.range(len(self.colnames)):
 							with tag(buf, 'td', {'class':'rAlign'} if col not in self.leftJustifyCols else {}):
 								try:
 									buf.write( cgi.escape(self.data[col][row]).replace('\n', '<br/>\n') )
@@ -347,6 +327,3 @@ class ExportGrid( object ):
 			with tag(buf, 'a', dict(href="http://www.sites.google.com/site/crossmgrsoftware")):
 				buf.write( 'SprintMgr' )
 		return buf
-			
-if __name__ == '__main__':
-	pass

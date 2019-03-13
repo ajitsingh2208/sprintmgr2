@@ -3,6 +3,7 @@ import wx.grid as gridlib
 
 import os
 import sys
+import six
 import Utils
 from ReorderableGrid import ReorderableGrid, GridCellMultiLineStringRenderer
 from Competitions import SetDefaultData
@@ -92,7 +93,7 @@ class Chart(wx.Panel):
 		self.grid.ClearGrid()
 		self.setColNames()
 		
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
 			attr.SetReadOnly( True )
@@ -112,18 +113,18 @@ class Chart(wx.Panel):
 				for i, event in enumerate(system.events):
 					writeCell = WriteCell( self.grid, row, 2 )
 					
-					writeCell( unicode(i+1) )
-					writeCell( unicode(event.heatsMax) )
+					writeCell( u'{}'.format(i+1) )
+					writeCell(u' {}'.format(event.heatsMax) )
 					writeCell( u'\n'.join(event.composition).replace(u'\n',u' ({})\n'.format(len(event.composition)),1) )
 					
 					riders = [state.labels.get(c, None) for c in event.composition]
-					writeCell( u'\n'.join([unicode(rider.bib if rider.bib else u'') if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([u'{}'.format(rider.bib if rider.bib else u'') if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowNames', True):
 						writeCell( u'\n'.join([rider.full_name if rider else u'' for rider in riders]) )
 					if getattr(model, 'chartShowTeams', True):
 						writeCell( u'\n'.join([rider.team if rider else u'' for rider in riders]) )
 					
-					for heat in xrange(3):
+					for heat in six.moves.range(3):
 						if event.heatsMax > 1:
 							writeCell( u'\n'.join(event.getHeatPlaces(heat+1)) )
 						else:
@@ -132,7 +133,7 @@ class Chart(wx.Panel):
 					out = [event.winner] + event.others
 					writeCell( u'\n'.join(out).replace(u'\n',u' ({})\n'.format(len(out)),1) )
 					riders = [state.labels.get(c, None) for c in out]
-					writeCell( u'\n'.join([unicode(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
+					writeCell( u'\n'.join([u'{}'.format(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowNames', True):
 						writeCell( '\n'.join([rider.full_name if rider else '' for rider in riders]) )
 					if getattr(model, 'chartShowTeams', True):

@@ -3,6 +3,7 @@ import wx.grid as gridlib
 
 import os
 import sys
+import six
 import TestData
 import Model
 import Utils
@@ -181,16 +182,16 @@ class Results(wx.Panel):
 			self.setColNames()
 			for row, r in enumerate(riders):
 				if row < starters and r.status != 'DNQ':
-					pos = unicode(row + 1)
-					for col in xrange(self.grid.GetNumberCols()):
+					pos = u'{}'.format(row + 1)
+					for col in six.moves.range(self.grid.GetNumberCols()):
 						self.grid.SetCellBackgroundColour( row, col, wx.WHITE )
 				else:
 					pos = 'DNQ'
-					for col in xrange(self.grid.GetNumberCols()):
+					for col in six.moves.range(self.grid.GetNumberCols()):
 						self.grid.SetCellBackgroundColour( row, col, wx.Colour(200,200,200) )
 						
 				writeCell = WriteCell( self.grid, row )
-				for col, value in enumerate([pos, unicode(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
+				for col, value in enumerate([pos,u' {}'.format(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
 					if col not in hideCols:
 						writeCell( value )
 						
@@ -211,12 +212,12 @@ class Results(wx.Panel):
 			for row, (classification, r) in enumerate(results):
 				writeCell = WriteCell( self.grid, row )
 				if not r:
-					for col in xrange(self.grid.GetNumberCols()):
+					for col in six.moves.range(self.grid.GetNumberCols()):
 						writeCell( '' )
 				else:
 					for col, value in enumerate([classification, r.bib if r.bib else '', r.full_name, r.team, r.license]):
 						if col not in hideCols:
-							writeCell( unicode(value) )
+							writeCell(u' {}'.format(value) )
 			self.competitionTime.SetLabel( u'' ) 
 		else:
 			# Find the Tournament and System selected.
@@ -247,10 +248,10 @@ class Results(wx.Panel):
 			for row, event in enumerate(system.events):
 				writeCell = WriteCell( self.grid, row )
 				
-				writeCell( unicode(row+1) )
+				writeCell( u'{}'.format(row+1) )
 				
 				riders = [state.labels.get(c, None) for c in event.composition]
-				writeCell( u'\n'.join([unicode(rider.bib) if rider and rider.bib else '' for rider in riders]) )
+				writeCell( u'\n'.join([u'{}'.format(rider.bib) if rider and rider.bib else '' for rider in riders]) )
 				if getattr(model, 'resultsShowNames', True):
 					writeCell( u'\n'.join([rider.full_name  if rider else u'' for rider in riders]) )
 				writeCell( u'\n'.join([competition.getRelegationsWarningsStr(rider.bib, event, True) if rider else u'' for rider in riders]) )
@@ -258,7 +259,7 @@ class Results(wx.Panel):
 					writeCell( u'\n'.join([rider.team if rider else '' for rider in riders]) )
 
 				if heatsMax != 1:
-					for heat in xrange(heatsMax):
+					for heat in six.moves.range(heatsMax):
 						if event.heatsMax != 1:
 							writeCell( u'\n'.join(event.getHeatPlaces(heat+1)) )
 						else:
@@ -269,8 +270,8 @@ class Results(wx.Panel):
 				
 				out = [event.winner] + event.others
 				riders = [state.labels.get(c, None) for c in out]
-				writeCell( u'\n'.join( unicode(i+1) for i in xrange(len(riders))) )
-				writeCell( u'\n'.join([unicode(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
+				writeCell( u'\n'.join( u'{}'.format(i+1) for i in six.moves.range(len(riders))) )
+				writeCell( u'\n'.join([u'{}'.format(rider.bib if rider.bib else '') if rider else '' for rider in riders]) )
 				if getattr(model, 'resultsShowNames', True):
 					writeCell( u'\n'.join([rider.full_name if rider else '' for rider in riders]) )
 				writeCell( u'\n'.join([competition.getRelegationsWarningsStr(rider.bib, event, False) if rider else u'' for rider in riders]) )

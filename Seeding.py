@@ -3,6 +3,7 @@ import wx.grid as gridlib
 
 import os
 import sys
+import six
 import random
 import TestData
 from ReorderableGrid import ReorderableGrid
@@ -47,7 +48,7 @@ class Seeding(wx.Panel):
 
 		# Set specialized editors for appropriate columns.
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
 			if col == 0:
@@ -79,7 +80,7 @@ class Seeding(wx.Panel):
 		testData = TestData.getTestData()
 		for row, data in enumerate(testData):
 			for col, d in enumerate(data):
-				self.grid.SetCellValue( row, col, unicode(d) )
+				self.grid.SetCellValue( row, col,u' {}'.format(d) )
 		
 		# Fix up the column and row sizes.
 		self.grid.AutoSizeColumns( False )
@@ -125,11 +126,11 @@ class Seeding(wx.Panel):
 	def refresh( self ):
 		riders = Model.model.riders
 		for row, r in enumerate(riders):
-			for col, value in enumerate([unicode(r.bib), r.first_name, r.last_name, r.team, r.team_code, r.license]):
+			for col, value in enumerate([u'{}'.format(r.bib), r.first_name, r.last_name, r.team, r.team_code, r.license]):
 				self.grid.SetCellValue( row, col, value )
 				
-		for row in xrange(len(riders), self.grid.GetNumberRows()):
-			for col in xrange(self.grid.GetNumberCols()):
+		for row in six.moves.range(len(riders), self.grid.GetNumberRows()):
+			for col in six.moves.range(self.grid.GetNumberCols()):
 				self.grid.SetCellValue( row, col, u'' )
 				
 		# Fix up the column and row sizes.
@@ -146,7 +147,7 @@ class Seeding(wx.Panel):
 		self.grid.SaveEditControlValue()
 
 		riders = []
-		for row in xrange(self.grid.GetNumberRows()):
+		for row in six.moves.range(self.grid.GetNumberRows()):
 			fields = {}
 			for col, attr in enumerate(['bib', 'first_name', 'last_name', 'team', 'team_code', 'license']):
 				fields[attr] = self.grid.GetCellValue(row, col).strip()

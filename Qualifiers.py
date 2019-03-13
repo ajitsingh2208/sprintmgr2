@@ -3,6 +3,7 @@ import wx.grid as gridlib
 
 import os
 import sys
+import six
 import TestData
 import Utils
 import Model
@@ -43,7 +44,7 @@ class Qualifiers(wx.Panel):
 
 		# Set specialized editors for appropriate columns.
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
 			if col == self.iTime:
@@ -83,7 +84,7 @@ class Qualifiers(wx.Panel):
 			team = data[3]
 			time = data[-1]
 			for col, d in enumerate([bib, name, team, time]):
-				self.grid.SetCellValue( row, col, unicode(d) )
+				self.grid.SetCellValue( row, col,u' {}'.format(d) )
 		
 		# Fix up the column and row sizes.
 		self.grid.AutoSizeColumns( False )
@@ -97,7 +98,7 @@ class Qualifiers(wx.Panel):
 		
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(riders) )
 		for row, r in enumerate(riders):
-			for col, value in enumerate([unicode(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
+			for col, value in enumerate([u'{}'.format(r.bib), r.full_name, r.team, r.qualifyingTimeText]):
 				self.grid.SetCellValue( row, col, value )
 				
 		# Fix up the column and row sizes.
@@ -116,7 +117,7 @@ class Qualifiers(wx.Panel):
 		
 		self.grid.SaveEditControlValue()
 
-		for row in xrange(self.grid.GetNumberRows()):
+		for row in six.moves.range(self.grid.GetNumberRows()):
 			v = self.grid.GetCellValue( row, self.iTime ).strip()
 			if v:
 				qt = Utils.StrToSeconds( v )

@@ -1,9 +1,10 @@
 import wx
 import wx.adv
 from wx.lib.wordwrap import wordwrap
-import sys
 import os
 import re
+import sys
+import six
 import datetime
 import random
 import time
@@ -13,12 +14,12 @@ import locale
 import traceback
 import xlwt
 import wx.lib.agw.flatnotebook as fnb
-import cPickle as pickle
 from optparse import OptionParser
 import codecs
 import base64
 import uuid
-import StringIO
+pickle = six.moves.cPickle
+StringIO = six.moves.StringIO
 
 import Utils
 import Model
@@ -206,7 +207,7 @@ class MainWin( wx.Frame ):
 		self.fileMenu.AppendSeparator()
 		
 		recent = wx.Menu()
-		self.fileMenu.Append(wx.ID_ANY, "&Recent Files", recent)
+		self.fileMenu.AppendSubMenu(recent, "&Recent Files" )
 		self.filehistory.UseMenu( recent )
 		self.filehistory.AddFilesToMenu()
 		
@@ -257,38 +258,34 @@ class MainWin( wx.Frame ):
 		#-----------------------------------------------------------------------
 		self.toolsMenu = wx.Menu()
 		
-		wx.ID_ANY = wx.NewId()
-		self.toolsMenu.Append( wx.ID_ANY , _("Copy Log File to &Clipboard..."), _("Copy Log File to &Clipboard") )
-		self.Bind(wx.EVT_MENU, self.menuCopyLogFileToClipboard, id=wx.ID_ANY )
+		item = self.toolsMenu.Append( wx.ID_ANY , _("Copy Log File to &Clipboard..."), _("Copy Log File to &Clipboard") )
+		self.Bind(wx.EVT_MENU, self.menuCopyLogFileToClipboard, item )
 
 		self.menuBar.Append( self.toolsMenu, _("&Tools") )
 		
 		#-----------------------------------------------------------------------
 		self.optionsMenu = wx.Menu()
 		
-		wx.ID_ANY = wx.NewId()
-		self.optionsMenu.Append( wx.ID_ANY , _("Set &Graphic..."), _("Set Graphic for Output") )
-		self.Bind(wx.EVT_MENU, self.menuSetGraphic, id=wx.ID_ANY )
+		item = self.optionsMenu.Append( wx.ID_ANY , _("Set &Graphic..."), _("Set Graphic for Output") )
+		self.Bind(wx.EVT_MENU, self.menuSetGraphic, item )
 		
 		self.menuBar.Append( self.optionsMenu, _("&Options") )
 		
 		#-----------------------------------------------------------------------
 		self.helpMenu = wx.Menu()
 
-		wx.ID_ANY = wx.NewId()
-		self.helpMenu.Append( wx.ID_ANY , "&QuickStart...", "Get started with SprintMgr Now..." )
-		self.Bind(wx.EVT_MENU, self.menuHelpQuickStart, id=wx.ID_ANY )
-		self.helpMenu.Append( wx.ID_HELP , "&Help...", "Help about SprintMgr..." )
-		self.Bind(wx.EVT_MENU, self.menuHelp, id=wx.ID_HELP )
+		item = self.helpMenu.Append( wx.ID_ANY , "&QuickStart...", "Get started with SprintMgr Now..." )
+		self.Bind(wx.EVT_MENU, self.menuHelpQuickStart, item )
+		item = self.helpMenu.Append( wx.ID_HELP , "&Help...", "Help about SprintMgr..." )
+		self.Bind(wx.EVT_MENU, self.menuHelp, item )
 		
 		self.helpMenu.AppendSeparator()
 
-		self.helpMenu.Append( wx.ID_ABOUT , "&About...", "About SprintMgr..." )
-		self.Bind(wx.EVT_MENU, self.menuAbout, id=wx.ID_ABOUT )
+		item = self.helpMenu.Append( wx.ID_ABOUT , "&About...", "About SprintMgr..." )
+		self.Bind(wx.EVT_MENU, self.menuAbout, item )
 
-		wx.ID_ANY = wx.NewId()
-		self.helpMenu.Append( wx.ID_ANY , "&Tips at Startup...", "Enable/Disable Tips at Startup..." )
-		self.Bind(wx.EVT_MENU, self.menuTipAtStartup, id=wx.ID_ANY )
+		item = self.helpMenu.Append( wx.ID_ANY , "&Tips at Startup...", "Enable/Disable Tips at Startup..." )
+		self.Bind(wx.EVT_MENU, self.menuTipAtStartup, item )
 
 		self.menuBar.Append( self.helpMenu, "&Help" )
 
@@ -605,7 +602,7 @@ class MainWin( wx.Frame ):
 
 		title = self.getTitle()
 		
-		htmlStream = StringIO.StringIO()
+		htmlStream = StringIO()
 		html = codecs.getwriter('utf8')( htmlStream )
 		
 		with tag(html, 'html'):
@@ -958,7 +955,7 @@ table.results tr td.fastest{
 	
 	def menuAbout( self, event ):
 		# First we create and fill the info object
-		info = wx.AboutDialogInfo()
+		info = wx.adv.AboutDialogInfo()
 		info.Name = Version.AppVerName
 		info.Version = ''
 		info.Copyright = "(C) 2013"
@@ -995,7 +992,7 @@ table.results tr td.fastest{
 			"Computers fail, screw-ups happen.  Always use a paper manual backup."
 		info.License = wordwrap(licenseText, 500, wx.ClientDC(self))
 
-		wx.AboutBox(info)
+		wx.adv.AboutBox(info)
 
 	#--------------------------------------------------------------------------------------
 

@@ -1,4 +1,5 @@
 import sys
+import six
 import random
 import datetime
 import traceback
@@ -95,7 +96,7 @@ class State( object ):
 		for i, (t, iSeeding, rider) in enumerate(qt):
 			self.labels['N{}'.format(i+1)] = rider
 		# Set extra open spaces to make sure we have enough starters.
-		for i in xrange(len(qtIn), 128):
+		for i in six.moves.range(len(qtIn), 128):
 			self.labels['N{}'.format(i+1)] = self.OpenRider
 		self.OpenRider.qualifyingTime =  QualifyingTimeDefault + 1.0
 
@@ -103,12 +104,12 @@ class State( object ):
 		return self.labels.get(id, None) != self.OpenRider and id not in self.noncontinue
 		
 	def getQualifyingTimes( self ):
-		riders = [rider for label, rider in self.labels.iteritems() if label.startswith('N') and rider != self.OpenRider]
+		riders = [rider for label, rider in six.iteritems(self.labels) if label.startswith('N') and rider != self.OpenRider]
 		return sorted( ((rider.qualifyingTime, rider) for rider in riders), key = lambda qr: qr[1].keyQualifying() )
 		
 	def canReassignStarters( self ):
 		''' Check if not competitions have started and we can reasign starters. '''
-		return all( label.startswith('N') for label in self.labels.iterkeys() )
+		return all( label.startswith('N') for label in six.iterkeys(self.labels) )
 
 #------------------------------------------------------------------------------------------------
 
@@ -207,7 +208,7 @@ class Start( object ):
 			else:
 				self.noncontinue.pop(id, None)
 		
-		self.startPositions = [id for p, id in sorted((p, id) for id, p in startIdPosition.iteritems())]
+		self.startPositions = [id for p, id in sorted((p, id) for id, p in six.iteritems(startIdPosition))]
 	
 	def setPlaces( self, places ):
 		''' places is of the form [(bib, status, warning, relegation), (bib, status, warning, relegation), ...] '''
@@ -238,10 +239,10 @@ class Start( object ):
 				place += 1
 				statusPlaceId.append( (finishCode.get(status,0), place, id) )
 				
-			if (unicode(warning)[:1] or u'0') in u'1TtYy':
+			if (u'{}'.format(warning)[:1] or u'0') in u'1TtYy':
 				self.addWarning( id )
 			
-			if (unicode(relegation)[:1] or u'0') in u'1TtYy':
+			if (u'{}'.format(relegation)[:1] or u'0') in u'1TtYy':
 				self.addRelegation( id )
 			
 		statusPlaceId.sort()
@@ -262,15 +263,14 @@ class Start( object ):
 		state = self.event.competition.state
 		OpenRider = state.OpenRider
 		bibStatus = []
-		for pos, id in sorted( (pos, id) for pos, id in self.places.iteritems() ):
+		for pos, id in sorted( (pos, id) for pos, id in six.iteritems(self.places) ):
 			try:
 				bibStatus.append( (state.labels[id].bib, '') )
 			except KeyError:
 				pass
-		for id, status in self.noncontinue.iteritems():
+		for id, status in six.iteritems(self.noncontinue):
 			bibStatus.append( (state.labels[id].bib, status) )
 		
-		print bibStatus
 		self.setPlaces( bibStatus )
 	
 	def setTimes( self, times ):
@@ -637,11 +637,11 @@ class Competition( object ):
 			if not success:
 				break
 		labels = self.state.labels
-		return [ labels.get('{}R'.format(r+1), None) for r in xrange(self.starters) ]
+		return [ labels.get('{}R'.format(r+1), None) for r in six.moves.range(self.starters) ]
 
 	def getRiderStates( self ):
 		riderState = defaultdict( set )
-		for id, reason in self.state.noncontinue.iteritems():
+		for id, reason in six.iteritems(self.state.noncontinue):
 			riderState[reason].add( self.state.labels[id] )
 		DQs = riderState['DQ']
 		DNSs = set( e for e in riderState['DNS'] if e not in DQs )
@@ -652,7 +652,7 @@ class Competition( object ):
 		DQs, DNSs, DNFs = self.getRiderStates()
 		semiFinalRound, smallFinalRound, bigFinalRound = 60, 61, 62
 		
-		riders = { rider for label, rider in self.state.labels.iteritems() if label.startswith('N') }
+		riders = { rider for label, rider in six.iteritems(self.state.labels) if label.startswith('N') }
 		
 		Finisher, DNF, DNS, DQ = 1, 2, 3, 4
 		riderStatus = { rider: (DQ if rider in DQs else DNS if rider in DNSs else DNF if rider in DNFs else Finisher) for rider in riders }
@@ -666,7 +666,7 @@ class Competition( object ):
 		if not self.isMTB:
 			# Rank the rest of the riders based on their results in the competition.
 			results = [None] * self.starters
-			for i in xrange(self.starters):
+			for i in six.moves.range(self.starters):
 				try:
 					results[i] = self.state.labels['{}R'.format(i+1)]
 				except KeyError:
@@ -674,7 +674,7 @@ class Competition( object ):
 
 			# Rank the remaining riders based on qualifying time (TT).
 			iTT = self.starters
-			tts = [rider for label, rider in self.state.labels.iteritems() if label.endswith('TT')]
+			tts = [rider for label, rider in six.iteritems(self.state.labels) if label.endswith('TT')]
 			tts.sort( key = lambda r: r.qualifyingTime, reverse = True )	# Sort these in reverse as we assign them in from most to least.
 			for rider in tts:
 				iTT -= 1
@@ -761,7 +761,7 @@ class Competition( object ):
 			results = [rr[-2:] for rr in compResults]
 			
 			# Adjust the available finisher positions for the abnormal finishes.
-			for i in xrange(len(abnormalFinishers)):
+			for i in six.moves.range(len(abnormalFinishers)):
 				try:
 					results.remove( (statusText[Finisher], None) )
 				except ValueError:
@@ -850,7 +850,7 @@ class Model( object ):
 		return { a : getattr(self, a) for a in ['competition_name', 'date', 'category', 'track', 'organizer', 'chief_official'] }
 
 	def setProperties( self, properties ):
-		for a, v in properties.iteritems():
+		for a, v in six.iteritems(properties):
 			setattr(self, a, v)
 		
 	def updateSeeding( self ):

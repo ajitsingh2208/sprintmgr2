@@ -1,5 +1,6 @@
 import wx
 import os
+import six
 import wx.grid as gridlib
 import wx.lib.mixins.gridlabelrenderer as glr
 import wx.lib.mixins.grid as gae
@@ -89,7 +90,7 @@ class ReorderableGridRowMixin( object ):
 		evt.Skip()
 
 	def copyRow( self, fromRow, toRow ):
-		for c in xrange(self.GetNumberCols()):
+		for c in six.moves.range(self.GetNumberCols()):
 			self.SetCellValue( toRow, c, self.GetCellValue(fromRow, c) )
 			self.SetCellBackgroundColour( toRow, c, self.GetCellBackgroundColour(fromRow, c) )
 		
@@ -111,12 +112,12 @@ class ReorderableGridRowMixin( object ):
 			
 		self.DeselectRow( self._lastRow )
 		
-		lastRowSave = [self.GetCellValue(self._lastRow, c) for c in xrange(self.GetNumberCols())]
-		lastRowBackgroundColourSave = [self.GetCellBackgroundColour(self._lastRow, c) for c in xrange(self.GetNumberCols())]
-		direction = cmp(row, self._lastRow)
-		for r in xrange(self._lastRow, row, direction ):
+		lastRowSave = [self.GetCellValue(self._lastRow, c) for c in six.moves.range(self.GetNumberCols())]
+		lastRowBackgroundColourSave = [self.GetCellBackgroundColour(self._lastRow, c) for c in six.moves.range(self.GetNumberCols())]
+		direction = 1 if row > self._lastRow else 1 if row < self._lastRow else 0
+		for r in six.moves.range(self._lastRow, row, direction ):
 			self.copyRow( r + direction, r )
-		for c in xrange(self.GetNumberCols()):
+		for c in six.moves.range(self.GetNumberCols()):
 			self.SetCellValue( row, c, lastRowSave[c] )
 			self.SetCellBackgroundColour( row, c, lastRowBackgroundColourSave[c] )
 		
@@ -157,7 +158,7 @@ class ReorderableGridRowMixin( object ):
 
 		y += yoff - colheight
 		ypos = 0
-		for row in xrange(self.GetNumberRows()):
+		for row in six.moves.range(self.GetNumberRows()):
 			nexty = ypos + self.GetRowSize(row)
 			if ypos <= y <= nexty:
 				break
@@ -184,14 +185,14 @@ class KeyboardNavigationGridMixin( object ):
 			if event.ShiftDown():
 				if self.GetGridCursorCol() == 0 and self.GetGridCursorRow() != 0:
 					self.MoveCursorUp(False)
-					for c in xrange(self.GetNumberCols()):
+					for c in six.moves.range(self.GetNumberCols()):
 						self.MoveCursorRight(False)
 				else:
 					self.MoveCursorLeft(False)
 			else:
 				if self.GetGridCursorCol() == self.GetNumberCols() - 1 and self.GetGridCursorRow() != self.GetNumberRows() - 1:
 					self.MoveCursorDown(False)
-					for c in xrange(self.GetNumberCols()):
+					for c in six.moves.range(self.GetNumberCols()):
 						self.MoveCursorLeft(False)
 				else:
 					self.MoveCursorRight(False)
@@ -218,10 +219,10 @@ class SaveEditWhenFocusChangesGridMixin( object ):
 		
 ########################################################################
 class CornerReorderableGridLabelRenderer(glr.GridLabelRenderer):
-    def __init__(self):
-        self._bmp = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'UpDown.png'), wx.BITMAP_TYPE_PNG )
-        
-    def Draw(self, grid, dc, rect, rc):
+	def __init__(self):
+		self._bmp = wx.Bitmap( os.path.join(Utils.getImageFolder(), 'UpDown.png'), wx.BITMAP_TYPE_PNG )
+		
+	def Draw(self, grid, dc, rect, rc):
 		if grid._enableReorderRows:
 			x = rect.left + (rect.width - self._bmp.GetWidth()) / 2
 			y = rect.top + (rect.height - self._bmp.GetHeight()) / 2

@@ -3,6 +3,7 @@ import wx.grid as gridlib
 
 import os
 import sys
+import six
 import TestData
 import Utils
 import Model
@@ -27,7 +28,7 @@ class TTResults(wx.Panel):
 		# Set specialized editors for appropriate columns.
 		font = GetFont()
 		self.grid.SetLabelFont( font )
-		for col in xrange(self.grid.GetNumberCols()):
+		for col in six.moves.range(self.grid.GetNumberCols()):
 			attr = gridlib.GridCellAttr()
 			attr.SetFont( font )
 			if col == self.grid.GetNumberCols() - 1:
@@ -57,12 +58,12 @@ class TTResults(wx.Panel):
 		Utils.AdjustGridSize( self.grid, rowsRequired = len(riders) )
 		for row, r in enumerate(riders):
 			if row < starters:
-				pos = unicode(row + 1)
+				pos = u'{}'.format(row + 1)
 			else:
 				pos = 'DNQ'
-				for col in xrange(self.grid.GetNumberCols()):
+				for col in six.moves.range(self.grid.GetNumberCols()):
 					self.grid.SetCellBackgroundColour( row, col, wx.Colour(200,200,200) )
-			for col, value in enumerate([pos, unicode(r.bib), r.full_name, r.team, '%.3f' % r.qualifyingTime]):
+			for col, value in enumerate([pos,u' {}'.format(r.bib), r.full_name, r.team, '%.3f' % r.qualifyingTime]):
 				self.grid.SetCellValue( row, col, value )
 				
 		self.grid.AutoSizeColumns( False )

@@ -1,10 +1,11 @@
 from __future__ import print_function
 
-import os
-import sys
-import itertools
 import wx
 import re
+import os
+import sys
+import six
+import itertools
 import copy
 import wx.lib.filebrowsebutton as filebrowse
 import wx.lib.scrolledpanel as scrolled
@@ -160,7 +161,7 @@ class HeaderNamesPage(adv.WizardPageSimple):
 		self.headers = [h if h else 'BlankHeaderName{:03d}'.format(c+1) for c, h in enumerate(self.headers)]
 		
 		if not self.headers:
-			raise ValueError, 'Could not find a Header Row {}::{}.'.format(fileName, sheetName)
+			raise ValueError( 'Could not find a Header Row {}::{}.'.format(fileName, sheetName) )
 			
 		# Add an unmapped field at the end.
 		self.headers.append( '' )
@@ -342,8 +343,8 @@ class ExcelLink( object ):
 		self.sheetName = None
 		self.fieldCol = dict( (f, c) for c, f in enumerate(Fields) )
 	
-	def __cmp__( self, e ):
-		return cmp((self.fileName, self.sheetName, self.fieldCol), (e.fileName, e.sheetName, e.fieldCol))
+	def key( self ):
+		return (self.fileName, self.sheetName, self.fieldCol)
 	
 	def setFileName( self, fname ):
 		self.fileName = fname
@@ -382,7 +383,7 @@ class ExcelLink( object ):
 		info = {}
 		for r, row in enumerate(reader.iter_list(self.sheetName)):
 			data = {}
-			for field, col in self.fieldCol.iteritems():
+			for field, col in six.iteritems(self.fieldCol):
 				if col < 0:					# Skip unmapped columns.
 					continue
 				try:
@@ -411,7 +412,7 @@ def ImportStartList( parent ):
 	riders = Model.model.riders
 	riderBib = dict( (r.bib, r) for r in riders )
 	importCount = 0
-	for bib, data in info.iteritems():
+	for bib, data in six.iteritems(info):
 		# Merge with existing information.
 		if sum(int(bool(n)) for n in (data.get('FirstName',None), data.get('LastName',None))) == 1:
 			combinedName = data.get('FirstName',None) or data.get('LastName',None)
@@ -427,7 +428,7 @@ def ImportStartList( parent ):
 				if f in data:
 					setattr(r, FieldToAttr[f], data[f])
 		else:
-			r = Model.Rider( **dict((FieldToAttr[f], v) for f, v in data.iteritems()) )
+			r = Model.Rider( **dict((FieldToAttr[f], v) for f, v in six.iteritems(data)) )
 			riders.append( r )
 			riderBib[bib] = r
 		importCount += 1
